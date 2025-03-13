@@ -18,13 +18,17 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // FolderReconciler reconciles a Folder object
@@ -49,15 +53,50 @@ type FolderReconciler struct {
 func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	folder := &v1alpha1.Folder{}
+	if err := r.Client.Get(ctx, req.NamespacedName, folder); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	nsList := corev1.NamespaceList{}
+	if err := r.Client.List(ctx, &nsList); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	rbList := rbacv1.RoleBindingList{}
+	if err := r.Client.List(ctx, &rbList); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	for _, ns := range nsList.Items {
+		fmt.Printf("NAMESPACE: %s\n", ns.Name)
+	}
+
+	for _, rb := range rbList.Items {
+		fmt.Printf("ROLEBINDING: %s/%s\n", rb.Namespace, rb.Name)
+	}
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FolderReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&kubevirtfolderviewkubevirtiov1alpha1.Folder{}).
+		For(&v1alpha1.Folder{}).
 		Named("folder").
+		// TODO - reenqueue folder if role or namespace objects change.
+		//		Watches(
+		//			&corev1.Namespace{},
+		//			handler.EnqueueRequestsFromMapFunc(),
+		//		).
+		//		Watches(
+		//			&rbacv1.RoleBinding{},
+		//			handler.EnqueueRequestsFromMapFunc(),
+		//		).
 		Complete(r)
+
 }
