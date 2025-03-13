@@ -71,6 +71,26 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	// TODO Folder Logic
+
+	// 1. Collect all namespaces associated with this folder and child folders
+	// 2. Collect all existing RB associated with this folder
+	//    a. Label on RB pointing back to folder
+	//    b. TODO need to make this label immutable
+	// 3. generate expected RB for this folder for all namespaces
+	//    a. loop through namespaces
+	//    b. generate expected rbac objects
+	//       - RB name needs to be unique - (use a hash combo feeding in uuid of folder + subject + rb)
+	//       - ensure Label is set pointing back to folder
+	//       - ensure OwnerReference is accurate
+	// 4. apply all expected RB, updating if existing and different, creating if non existent
+	// 5. delete all RB that doesn't match an expected RB name list.
+	//
+	// RB name is unique and meant to be repeatable if subject/rb pairs remain stable. This allows us
+	// to determine if a RB should exist or not
+	//
+	// RB label is meant to be stable and point back to folder
+
 	for _, ns := range nsList.Items {
 		fmt.Printf("NAMESPACE: %s\n", ns.Name)
 	}
