@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - kubevirtfolderview.kubevirt.io.github.com
+  resources:
+  - folders
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubevirtfolderview.kubevirt.io.github.com
+  resources:
+  - folders/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kubevirtfolderview.kubevirt.io.github.com
+  resources:
+  - folders/status
+  verbs:
+  - get
+  - patch
+  - update
