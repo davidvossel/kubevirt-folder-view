@@ -17,19 +17,24 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// FolderPermission defines what roles are applied to a subject
+// in order for that subject to have permissions to access the folder
+type FolderPermission struct {
+	Subject rbacv1.Subject `json:"subject"`
+
+	RoleRefs []rbacv1.RoleRef `json:"rolerefs,omitempty"`
+}
 
 // FolderSpec defines the desired state of Folder.
 type FolderSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Folder. Edit folder_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ChildFolders      []string           `json:"childFolders,omitempty"`
+	ParentFolder      string             `json:"parentFolders,omitempty"`
+	FolderPermissions []FolderPermission `json:"folderPermissions,omitempty"`
+	Namespaces        string             `json:"namespaces,omitempty"`
 }
 
 // FolderStatus defines the observed state of Folder.
