@@ -10,6 +10,14 @@ spec:
   - kube-system
   childFolders:
   - folder-user
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: test-user
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: admin
 ---
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
 kind: Folder

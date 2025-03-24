@@ -22,18 +22,85 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 )
+
+const FolderOwnershipLabel = "owner.folderview.kubevirt.io"
 
 // FolderReconciler reconciles a Folder object
 type FolderReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+}
+
+func generateRBHash(folderUID types.UID, namespace string, subject rbacv1.Subject, roleRef rbacv1.RoleRef) (string, error) {
+
+	subjectJson, err := json.Marshal(subject)
+	if err != nil {
+		return "", err
+	}
+	roleRefJson, err := json.Marshal(roleRef)
+	if err != nil {
+		return "", err
+	}
+
+	s := fmt.Sprintf("%s-%s-%s-%s", string(folderUID), namespace, string(subjectJson), string(roleRefJson))
+	h := sha256.New()
+
+	_, err = h.Write([]byte(s))
+	if err != nil {
+		return "", err
+	}
+
+	bs := h.Sum(nil)
+
+	return hex.EncodeToString(bs), nil
+}
+
+func (r *FolderReconciler) reconcileFolderPermissions(ctx context.Context, folder *v1alpha1.Folder, namespace string) ([]string, error) {
+	appliedRBs := []string{}
+
+	for _, fp := range folder.Spec.FolderPermissions {
+		for _, rr := range fp.RoleRefs {
+			name, err := generateRBHash(folder.UID, namespace, fp.Subject, rr)
+			if err != nil {
+				return appliedRBs, err
+			}
+
+			expectedRB := &rbacv1.RoleBinding{}
+			expectedRB.Name = name
+			expectedRB.Namespace = namespace
+			_, err = controllerutil.CreateOrUpdate(ctx, r.Client, expectedRB, func() error {
+				if expectedRB.Labels == nil {
+					expectedRB.Labels = map[string]string{}
+				}
+				expectedRB.Labels[FolderOwnershipLabel] = string(folder.UID)
+
+				expectedRB.Subjects = []rbacv1.Subject{fp.Subject}
+				expectedRB.RoleRef = rr
+				return nil
+			})
+			if err != nil {
+				return appliedRBs, err
+			}
+
+			appliedRBs = append(appliedRBs, name)
+		}
+	}
+
+	return appliedRBs, nil
 }
 
 func (r *FolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.Folder) ([]corev1.Namespace, error) {
@@ -95,11 +162,6 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//	return ctrl.Result{}, err
 	//}
 
-	//rbList := rbacv1.RoleBindingList{}
-	//if err := r.Client.List(ctx, &rbList); err != nil {
-	//	return ctrl.Result{}, err
-	//}
-
 	folderNamespaces, err := r.getAllNamespaces(ctx, folder)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -114,7 +176,7 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// 3. generate expected RB for this folder for all namespaces
 	//    a. loop through namespaces
 	//    b. generate expected rbac objects
-	//       - RB name needs to be unique - (use a hash combo feeding in uuid of folder + subject + rb)
+	//       - RB name needs to be unique - (use a hash combo feeding in uuid of folder + namespace + subject + rb)
 	//       - ensure Label is set pointing back to folder
 	//       - ensure OwnerReference is accurate
 	// 4. apply all expected RB, updating if existing and different, creating if non existent
@@ -125,8 +187,26 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//
 	// RB label is meant to be stable and point back to folder
 
+	rbList := rbacv1.RoleBindingList{}
+
+	rbLabels := map[string]string{
+		FolderOwnershipLabel: string(folder.UID),
+	}
+	if err := r.Client.List(ctx, &rbList, client.MatchingLabels(rbLabels)); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	expectedRBs := map[string]bool{}
 	for _, ns := range folderNamespaces {
 		log.Info(fmt.Sprintf("NAMESPACE: %s\n", ns.Name))
+		appliedRBs, err := r.reconcileFolderPermissions(ctx, folder, ns.Name)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		for _, rbName := range appliedRBs {
+			expectedRBs[rbName] = true
+		}
 	}
 
 	//	for _, rb := range rbList.Items {

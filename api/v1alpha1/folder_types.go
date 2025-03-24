@@ -26,7 +26,7 @@ import (
 type FolderPermission struct {
 	Subject rbacv1.Subject `json:"subject"`
 
-	RoleRefs []rbacv1.RoleRef `json:"rolerefs,omitempty"`
+	RoleRefs []rbacv1.RoleRef `json:"roleRefs,omitempty"`
 }
 
 // FolderSpec defines the desired state of Folder.
