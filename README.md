@@ -15,9 +15,6 @@ The admin-folder is a root folder and gives admin access to all the namespaces i
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
 kind: Folder
 metadata:
-  labels:
-    app.kubernetes.io/name: kubevirt-folder-view
-    app.kubernetes.io/managed-by: kustomize
   name: admin-folder
 spec:
   namespaces:
@@ -41,9 +38,6 @@ The `ops-support` folder is a child of the admin-folder, and gives view access t
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
 kind: Folder
 metadata:
-  labels:
-    app.kubernetes.io/name: kubevirt-folder-view
-    app.kubernetes.io/managed-by: kustomize
   name: ops-support
 spec:
   namespaces:
@@ -72,9 +66,6 @@ The `devs` folder is a child of admin-folder, and gives admin access to a subset
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
 kind: Folder
 metadata:
-  labels:
-    app.kubernetes.io/name: kubevirt-folder-view
-    app.kubernetes.io/managed-by: kustomize
   name: devs
 spec:
   namespaces:
