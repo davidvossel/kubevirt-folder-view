@@ -4,6 +4,20 @@ metadata:
   labels:
     app.kubernetes.io/name: kubevirt-folder-view
     app.kubernetes.io/managed-by: kustomize
-  name: folder-sample
+  name: folder-admin
 spec:
-  # TODO(user): Add fields here
+  namespaces:
+  - kube-system
+  childFolders:
+  - folder-user
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: Folder
+metadata:
+  labels:
+    app.kubernetes.io/name: kubevirt-folder-view
+    app.kubernetes.io/managed-by: kustomize
+  name: folder-user
+spec:
+  namespaces:
+  - default

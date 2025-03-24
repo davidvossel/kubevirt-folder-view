@@ -12,7 +12,7 @@ spec:
     listKind: FolderList
     plural: folders
     singular: folder
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
@@ -105,9 +105,9 @@ spec:
                   type: object
                 type: array
               namespaces:
-                type: string
-              parentFolders:
-                type: string
+                items:
+                  type: string
+                type: array
             type: object
           status:
             description: FolderStatus defines the observed state of Folder.

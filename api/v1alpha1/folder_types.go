@@ -32,19 +32,18 @@ type FolderPermission struct {
 // FolderSpec defines the desired state of Folder.
 type FolderSpec struct {
 	ChildFolders      []string           `json:"childFolders,omitempty"`
-	ParentFolder      string             `json:"parentFolders,omitempty"`
 	FolderPermissions []FolderPermission `json:"folderPermissions,omitempty"`
-	Namespaces        string             `json:"namespaces,omitempty"`
+	Namespaces        []string           `json:"namespaces,omitempty"`
 }
 
 // FolderStatus defines the observed state of Folder.
 type FolderStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	//ParentFolder string `json:"parentFolders,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // Folder is the Schema for the folders API.
 type Folder struct {

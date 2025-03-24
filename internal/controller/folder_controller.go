@@ -24,11 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	logger "sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // FolderReconciler reconciles a Folder object
@@ -37,23 +36,53 @@ type FolderReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+func (r *FolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.Folder) ([]corev1.Namespace, error) {
+	var folderNamespaces []corev1.Namespace
+	for _, nsName := range folder.Spec.Namespaces {
+		ns := corev1.Namespace{}
+		name := client.ObjectKey{Name: nsName}
+		err := r.Client.Get(ctx, name, &ns)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return folderNamespaces, err
+			}
+			continue
+		}
+
+		folderNamespaces = append(folderNamespaces, ns)
+	}
+
+	for _, child := range folder.Spec.ChildFolders {
+		childFolder := v1alpha1.Folder{}
+		name := client.ObjectKey{Name: child}
+
+		err := r.Client.Get(ctx, name, &childFolder)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return folderNamespaces, err
+			}
+			continue
+		}
+
+		childNamespaces, err := r.getAllNamespaces(ctx, &childFolder)
+		if err != nil {
+			return folderNamespaces, err
+		}
+
+		folderNamespaces = append(folderNamespaces, childNamespaces...)
+	}
+
+	return folderNamespaces, nil
+}
+
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Folder object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := logger.FromContext(ctx)
 
 	folder := &v1alpha1.Folder{}
+
 	if err := r.Client.Get(ctx, req.NamespacedName, folder); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -61,13 +90,18 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	nsList := corev1.NamespaceList{}
-	if err := r.Client.List(ctx, &nsList); err != nil {
-		return ctrl.Result{}, err
-	}
+	//nsList := corev1.NamespaceList{}
+	//if err := r.Client.List(ctx, &nsList); err != nil {
+	//	return ctrl.Result{}, err
+	//}
 
-	rbList := rbacv1.RoleBindingList{}
-	if err := r.Client.List(ctx, &rbList); err != nil {
+	//rbList := rbacv1.RoleBindingList{}
+	//if err := r.Client.List(ctx, &rbList); err != nil {
+	//	return ctrl.Result{}, err
+	//}
+
+	folderNamespaces, err := r.getAllNamespaces(ctx, folder)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -91,13 +125,13 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//
 	// RB label is meant to be stable and point back to folder
 
-	for _, ns := range nsList.Items {
-		fmt.Printf("NAMESPACE: %s\n", ns.Name)
+	for _, ns := range folderNamespaces {
+		log.Info(fmt.Sprintf("NAMESPACE: %s\n", ns.Name))
 	}
 
-	for _, rb := range rbList.Items {
-		fmt.Printf("ROLEBINDING: %s/%s\n", rb.Namespace, rb.Name)
-	}
+	//	for _, rb := range rbList.Items {
+	//		fmt.Printf("ROLEBINDING: %s/%s\n", rb.Namespace, rb.Name)
+	//	}
 
 	return ctrl.Result{}, nil
 }
