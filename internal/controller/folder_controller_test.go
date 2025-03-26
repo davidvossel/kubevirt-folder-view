@@ -30,7 +30,7 @@ import (
 	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 )
 
-var _ = Describe("Folder Controller", func() {
+var _ = Describe("ClusterFolder Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("Folder Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		folder := &kubevirtfolderviewkubevirtiov1alpha1.Folder{}
+		folder := &kubevirtfolderviewkubevirtiov1alpha1.ClusterFolder{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind Folder")
+			By("creating the custom resource for the Kind ClusterFolder")
 			err := k8sClient.Get(ctx, typeNamespacedName, folder)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &kubevirtfolderviewkubevirtiov1alpha1.Folder{
+				resource := &kubevirtfolderviewkubevirtiov1alpha1.ClusterFolder{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,16 +59,16 @@ var _ = Describe("Folder Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &kubevirtfolderviewkubevirtiov1alpha1.Folder{}
+			resource := &kubevirtfolderviewkubevirtiov1alpha1.ClusterFolder{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance Folder")
+			By("Cleanup the specific resource instance ClusterFolder")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &FolderReconciler{
+			controllerReconciler := &ClusterFolderReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

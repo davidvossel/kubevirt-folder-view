@@ -37,10 +37,10 @@ import (
 	"encoding/json"
 )
 
-const FolderOwnershipLabel = "owner.folderview.kubevirt.io"
+const ClusterFolderOwnershipLabel = "owner.folderview.kubevirt.io"
 
-// FolderReconciler reconciles a Folder object
-type FolderReconciler struct {
+// ClusterFolderReconciler reconciles a ClusterFolder object
+type ClusterFolderReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -69,7 +69,7 @@ func generateRBHash(folderUID types.UID, namespace string, subject rbacv1.Subjec
 	return hex.EncodeToString(bs), nil
 }
 
-func (r *FolderReconciler) reconcileFolderPermissions(ctx context.Context, folder *v1alpha1.Folder, namespace string) ([]string, error) {
+func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context, folder *v1alpha1.ClusterFolder, namespace string) ([]string, error) {
 	appliedRBs := []string{}
 
 	for _, fp := range folder.Spec.FolderPermissions {
@@ -86,7 +86,7 @@ func (r *FolderReconciler) reconcileFolderPermissions(ctx context.Context, folde
 				if expectedRB.Labels == nil {
 					expectedRB.Labels = map[string]string{}
 				}
-				expectedRB.Labels[FolderOwnershipLabel] = string(folder.UID)
+				expectedRB.Labels[ClusterFolderOwnershipLabel] = string(folder.UID)
 
 				expectedRB.Subjects = []rbacv1.Subject{fp.Subject}
 				expectedRB.RoleRef = rr
@@ -103,7 +103,7 @@ func (r *FolderReconciler) reconcileFolderPermissions(ctx context.Context, folde
 	return appliedRBs, nil
 }
 
-func (r *FolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.Folder) ([]corev1.Namespace, error) {
+func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder) ([]corev1.Namespace, error) {
 	var folderNamespaces []corev1.Namespace
 	for _, nsName := range folder.Spec.Namespaces {
 		ns := corev1.Namespace{}
@@ -119,11 +119,11 @@ func (r *FolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha
 		folderNamespaces = append(folderNamespaces, ns)
 	}
 
-	for _, child := range folder.Spec.ChildFolders {
-		childFolder := v1alpha1.Folder{}
+	for _, child := range folder.Spec.ChildClusterFolders {
+		childClusterFolder := v1alpha1.ClusterFolder{}
 		name := client.ObjectKey{Name: child}
 
-		err := r.Client.Get(ctx, name, &childFolder)
+		err := r.Client.Get(ctx, name, &childClusterFolder)
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
 				return folderNamespaces, err
@@ -131,7 +131,7 @@ func (r *FolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha
 			continue
 		}
 
-		childNamespaces, err := r.getAllNamespaces(ctx, &childFolder)
+		childNamespaces, err := r.getAllNamespaces(ctx, &childClusterFolder)
 		if err != nil {
 			return folderNamespaces, err
 		}
@@ -145,10 +145,10 @@ func (r *FolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders/finalizers,verbs=update
-func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logger.FromContext(ctx)
 
-	folder := &v1alpha1.Folder{}
+	folder := &v1alpha1.ClusterFolder{}
 
 	if err := r.Client.Get(ctx, req.NamespacedName, folder); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -166,7 +166,7 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	rbList := rbacv1.RoleBindingList{}
 
 	rbLabels := map[string]string{
-		FolderOwnershipLabel: string(folder.UID),
+		ClusterFolderOwnershipLabel: string(folder.UID),
 	}
 	if err := r.Client.List(ctx, &rbList, client.MatchingLabels(rbLabels)); err != nil {
 		return ctrl.Result{}, err
@@ -200,10 +200,10 @@ func (r *FolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *FolderReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ClusterFolderReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.Folder{}).
+		For(&v1alpha1.ClusterFolder{}).
 		Named("folder").
 		// TODO - reenqueue folder if role or namespace objects change.
 		//		Watches(

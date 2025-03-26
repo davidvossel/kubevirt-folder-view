@@ -8,8 +8,8 @@ metadata:
 spec:
   group: kubevirtfolderview.kubevirt.io.github.com
   names:
-    kind: Folder
-    listKind: FolderList
+    kind: ClusterFolder
+    listKind: ClusterFolderList
     plural: folders
     singular: folder
   scope: Cluster
@@ -17,7 +17,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Folder is the Schema for the folders API.
+        description: ClusterFolder is the Schema for the folders API.
         properties:
           apiVersion:
             description: |-
@@ -37,16 +37,16 @@ spec:
           metadata:
             type: object
           spec:
-            description: FolderSpec defines the desired state of Folder.
+            description: ClusterFolderSpec defines the desired state of ClusterFolder.
             properties:
-              childFolders:
+              childClusterFolders:
                 items:
                   type: string
                 type: array
               folderPermissions:
                 items:
                   description: |-
-                    FolderPermission defines what roles are applied to a subject
+                    ClusterFolderPermission defines what roles are applied to a subject
                     in order for that subject to have permissions to access the folder
                   properties:
                     roleRefs:
@@ -110,7 +110,7 @@ spec:
                 type: array
             type: object
           status:
-            description: FolderStatus defines the observed state of Folder.
+            description: ClusterFolderStatus defines the observed state of ClusterFolder.
             type: object
         type: object
     served: true

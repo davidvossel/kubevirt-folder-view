@@ -3,7 +3,7 @@
 
 This project creates the concept of a `folder` within kubernetes to organize namespaces.
 
-Folders contain Namespaces and nested child folders. Permissions can be assigned to a folder, which inturn results in those permissions being applied to all namespaces within the folder including the namespaces within the child folders.
+ClusterFolders contain Namespaces and nested child folders. Permissions can be assigned to a folder, which inturn results in those permissions being applied to all namespaces within the folder including the namespaces within the child folders.
 
 ## Example
 
@@ -13,13 +13,13 @@ The admin-folder is a root folder and gives admin access to all the namespaces i
 
 ```yaml
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
-kind: Folder
+kind: ClusterFolder
 metadata:
   name: admin-folder
 spec:
   namespaces:
   - kube-system
-  childFolders:
+  childClusterFolders:
   - ops-support
   - devs
   folderPermissions:
@@ -36,7 +36,7 @@ The `ops-support` folder is a child of the admin-folder, and gives view access t
 
 ```yaml
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
-kind: Folder
+kind: ClusterFolder
 metadata:
   name: ops-support
 spec:
@@ -64,7 +64,7 @@ The `devs` folder is a child of admin-folder, and gives admin access to a subset
 
 ```yaml
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
-kind: Folder
+kind: ClusterFolder
 metadata:
   name: devs
 spec:

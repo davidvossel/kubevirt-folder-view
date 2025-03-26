@@ -14,7 +14,7 @@ resources:
   controller: true
   domain: github.com
   group: kubevirtfolderview.kubevirt.io
-  kind: Folder
+  kind: ClusterFolder
   path: github.com/davidvossel/kubevirt-folder-view/api/v1alpha1
   version: v1alpha1
 version: "3"

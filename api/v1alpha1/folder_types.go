@@ -21,48 +21,48 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// FolderPermission defines what roles are applied to a subject
+// ClusterFolderPermission defines what roles are applied to a subject
 // in order for that subject to have permissions to access the folder
-type FolderPermission struct {
+type ClusterFolderPermission struct {
 	Subject rbacv1.Subject `json:"subject"`
 
 	RoleRefs []rbacv1.RoleRef `json:"roleRefs,omitempty"`
 }
 
-// FolderSpec defines the desired state of Folder.
-type FolderSpec struct {
-	ChildFolders      []string           `json:"childFolders,omitempty"`
-	FolderPermissions []FolderPermission `json:"folderPermissions,omitempty"`
-	Namespaces        []string           `json:"namespaces,omitempty"`
+// ClusterFolderSpec defines the desired state of ClusterFolder.
+type ClusterFolderSpec struct {
+	ChildClusterFolders []string                  `json:"childClusterFolders,omitempty"`
+	FolderPermissions   []ClusterFolderPermission `json:"folderPermissions,omitempty"`
+	Namespaces          []string                  `json:"namespaces,omitempty"`
 }
 
-// FolderStatus defines the observed state of Folder.
-type FolderStatus struct {
-	//ParentFolder string `json:"parentFolders,omitempty"`
+// ClusterFolderStatus defines the observed state of ClusterFolder.
+type ClusterFolderStatus struct {
+	//ParentClusterFolder string `json:"parentClusterFolders,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// Folder is the Schema for the folders API.
-type Folder struct {
+// ClusterFolder is the Schema for the folders API.
+type ClusterFolder struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   FolderSpec   `json:"spec,omitempty"`
-	Status FolderStatus `json:"status,omitempty"`
+	Spec   ClusterFolderSpec   `json:"spec,omitempty"`
+	Status ClusterFolderStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// FolderList contains a list of Folder.
-type FolderList struct {
+// ClusterFolderList contains a list of ClusterFolder.
+type ClusterFolderList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Folder `json:"items"`
+	Items           []ClusterFolder `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Folder{}, &FolderList{})
+	SchemeBuilder.Register(&ClusterFolder{}, &ClusterFolderList{})
 }

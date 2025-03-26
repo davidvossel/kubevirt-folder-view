@@ -1,5 +1,5 @@
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
-kind: Folder
+kind: ClusterFolder
 metadata:
   labels:
     app.kubernetes.io/name: kubevirt-folder-view
@@ -8,7 +8,7 @@ metadata:
 spec:
   namespaces:
   - kube-system
-  childFolders:
+  childClusterFolders:
   - folder-user
   folderPermissions:
   - subject:
@@ -20,7 +20,7 @@ spec:
       name: admin
 ---
 apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
-kind: Folder
+kind: ClusterFolder
 metadata:
   labels:
     app.kubernetes.io/name: kubevirt-folder-view
