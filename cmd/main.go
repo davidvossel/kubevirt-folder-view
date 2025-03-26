@@ -37,10 +37,11 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
-	"github.com/davidvossel/kubevirt-folder-view/internal/controller"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	"github.com/davidvossel/kubevirt-folder-view/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -211,6 +212,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterFolder")
+		os.Exit(1)
+	}
+	if err = (&controller.NamespacedFolderReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NamespacedFolder")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

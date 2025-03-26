@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/kubevirtfolderview.kubevirt.io.github.com_clusterfolders.yaml
+- bases/kubevirtfolderview.kubevirt.io.github.com_namespacedfolders.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
