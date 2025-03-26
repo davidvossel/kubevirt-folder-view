@@ -39,6 +39,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	virtv1 "kubevirt.io/api/core/v1"
 
 	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 	"github.com/davidvossel/kubevirt-folder-view/internal/controller"
@@ -56,6 +57,7 @@ func init() {
 	utilruntime.Must(kubevirtfolderviewkubevirtiov1alpha1.AddToScheme(scheme))
 	utilruntime.Must(rbacv1.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
+	utilruntime.Must(virtv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

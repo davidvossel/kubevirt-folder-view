@@ -19,13 +19,17 @@ package controller
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	virtv1 "kubevirt.io/api/core/v1"
 )
+
+const NamespacedFolderOwnershipLabel = "namespaced-owner.folderview.kubevirt.io"
 
 // NamespacedFolderReconciler reconciles a NamespacedFolder object
 type NamespacedFolderReconciler struct {
@@ -33,23 +37,60 @@ type NamespacedFolderReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+func (r *NamespacedFolderReconciler) getAllVMs(ctx context.Context, folder *v1alpha1.NamespacedFolder) ([]virtv1.VirtualMachine, error) {
+	var vms []virtv1.VirtualMachine
+	for _, vmName := range folder.Spec.VirtualMachines {
+		vm := virtv1.VirtualMachine{}
+		name := client.ObjectKey{Name: vmName}
+		err := r.Client.Get(ctx, name, &vm)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return vms, err
+			}
+			continue
+		}
+
+		vms = append(vms, vm)
+	}
+
+	for _, child := range folder.Spec.ChildNamespacedFolders {
+		childNamespacedFolder := v1alpha1.NamespacedFolder{}
+		name := client.ObjectKey{Name: child}
+
+		err := r.Client.Get(ctx, name, &childNamespacedFolder)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return vms, err
+			}
+			continue
+		}
+
+		childVMs, err := r.getAllVMs(ctx, &childNamespacedFolder)
+		if err != nil {
+			return vms, err
+		}
+
+		vms = append(vms, childVMs...)
+	}
+
+	return vms, nil
+}
+
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=namespacedfolders,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=namespacedfolders/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=namespacedfolders/finalizers,verbs=update
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the NamespacedFolder object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	//log := logger.FromContext(ctx)
+
+	folder := &v1alpha1.NamespacedFolder{}
+
+	if err := r.Client.Get(ctx, req.NamespacedName, folder); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -59,5 +100,14 @@ func (r *NamespacedFolderReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kubevirtfolderviewkubevirtiov1alpha1.NamespacedFolder{}).
 		Named("namespacedfolder").
+		// TODO - reenqueue folder if role, rolebindings change
+		//		Watches(
+		//			&rbacv1.Role{},
+		//			handler.EnqueueRequestsFromMapFunc(),
+		//		).
+		//		Watches(
+		//			&rbacv1.RoleBinding{},
+		//			handler.EnqueueRequestsFromMapFunc(),
+		//		).
 		Complete(r)
 }

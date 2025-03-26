@@ -37,7 +37,7 @@ import (
 	"encoding/json"
 )
 
-const ClusterFolderOwnershipLabel = "owner.folderview.kubevirt.io"
+const ClusterFolderOwnershipLabel = "cluster-owner.folderview.kubevirt.io"
 
 // ClusterFolderReconciler reconciles a ClusterFolder object
 type ClusterFolderReconciler struct {
