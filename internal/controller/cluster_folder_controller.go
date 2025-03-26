@@ -45,7 +45,7 @@ type ClusterFolderReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func generateRBHash(folderUID types.UID, namespace string, subject rbacv1.Subject, roleRef rbacv1.RoleRef) (string, error) {
+func generateRoleBindingNameHash(folderUID types.UID, namespace string, subject rbacv1.Subject, roleRef rbacv1.RoleRef) (string, error) {
 
 	subjectJson, err := json.Marshal(subject)
 	if err != nil {
@@ -74,7 +74,7 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 
 	for _, fp := range folder.Spec.FolderPermissions {
 		for _, rr := range fp.RoleRefs {
-			name, err := generateRBHash(folder.UID, namespace, fp.Subject, rr)
+			name, err := generateRoleBindingNameHash(folder.UID, namespace, fp.Subject, rr)
 			if err != nil {
 				return appliedRBs, err
 			}
