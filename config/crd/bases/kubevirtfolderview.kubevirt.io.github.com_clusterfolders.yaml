@@ -4,14 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.17.2
-  name: folders.kubevirtfolderview.kubevirt.io.github.com
+  name: clusterfolders.kubevirtfolderview.kubevirt.io.github.com
 spec:
   group: kubevirtfolderview.kubevirt.io.github.com
   names:
     kind: ClusterFolder
     listKind: ClusterFolderList
-    plural: folders
-    singular: folder
+    plural: clusterfolders
+    singular: clusterfolder
   scope: Cluster
   versions:
   - name: v1alpha1
