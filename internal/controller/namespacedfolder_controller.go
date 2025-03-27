@@ -26,6 +26,7 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,6 +44,18 @@ const NamespacedFolderOwnershipLabel = "namespaced-owner.folderview.kubevirt.io"
 type NamespacedFolderReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+}
+
+func getNamespacedFolderOwnerReference(folder *v1alpha1.NamespacedFolder) *metav1.OwnerReference {
+	t := true
+	return &metav1.OwnerReference{
+		APIVersion:         folder.APIVersion,
+		Kind:               folder.Kind,
+		Name:               folder.Name,
+		UID:                folder.UID,
+		Controller:         &t,
+		BlockOwnerDeletion: &t,
+	}
 }
 
 func (r *NamespacedFolderReconciler) getAllVMs(ctx context.Context, folder *v1alpha1.NamespacedFolder) ([]string, error) {
@@ -97,6 +110,8 @@ func generateRoleNameHash(folderUID types.UID, namespace string, rules []rbacv1.
 func (r *NamespacedFolderReconciler) reconcileRole(ctx context.Context, folder *v1alpha1.NamespacedFolder, roleRef *rbacv1.RoleRef, vms []string) (string, error) {
 
 	var rules []rbacv1.PolicyRule
+
+	ownerRef := getNamespacedFolderOwnerReference(folder)
 
 	if roleRef.Kind == "Role" {
 		role := &rbacv1.Role{}
@@ -186,6 +201,9 @@ func (r *NamespacedFolderReconciler) reconcileRole(ctx context.Context, folder *
 	newRole.Namespace = folder.Namespace
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, newRole, func() error {
+		newRole.OwnerReferences = []metav1.OwnerReference{
+			*ownerRef,
+		}
 		if newRole.Labels == nil {
 			newRole.Labels = map[string]string{}
 		}
@@ -208,6 +226,7 @@ func (r *NamespacedFolderReconciler) reconcileFolderPermissions(ctx context.Cont
 	appliedRoles := []string{}
 	namespace := folder.Namespace
 
+	ownerRef := getNamespacedFolderOwnerReference(folder)
 	for _, fp := range folder.Spec.FolderPermissions {
 		for _, existingRR := range fp.RoleRefs {
 
@@ -236,6 +255,9 @@ func (r *NamespacedFolderReconciler) reconcileFolderPermissions(ctx context.Cont
 			expectedRoleBinding.Name = name
 			expectedRoleBinding.Namespace = namespace
 			_, err = controllerutil.CreateOrUpdate(ctx, r.Client, expectedRoleBinding, func() error {
+				expectedRoleBinding.OwnerReferences = []metav1.OwnerReference{
+					*ownerRef,
+				}
 				if expectedRoleBinding.Labels == nil {
 					expectedRoleBinding.Labels = map[string]string{}
 				}

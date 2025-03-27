@@ -31,6 +31,7 @@ import (
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"crypto/sha256"
 	"encoding/hex"
@@ -43,6 +44,18 @@ const ClusterFolderOwnershipLabel = "cluster-owner.folderview.kubevirt.io"
 type ClusterFolderReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+}
+
+func getClusterFolderOwnerReference(folder *v1alpha1.ClusterFolder) *metav1.OwnerReference {
+	t := true
+	return &metav1.OwnerReference{
+		APIVersion:         folder.APIVersion,
+		Kind:               folder.Kind,
+		Name:               folder.Name,
+		UID:                folder.UID,
+		Controller:         &t,
+		BlockOwnerDeletion: &t,
+	}
 }
 
 func generateRoleBindingNameHash(folderUID types.UID, namespace string, subject rbacv1.Subject, roleRef rbacv1.RoleRef) (string, error) {
@@ -72,6 +85,8 @@ func generateRoleBindingNameHash(folderUID types.UID, namespace string, subject 
 func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context, folder *v1alpha1.ClusterFolder, namespace string) ([]string, error) {
 	appliedRBs := []string{}
 
+	ownerRef := getClusterFolderOwnerReference(folder)
+
 	for _, fp := range folder.Spec.FolderPermissions {
 		for _, rr := range fp.RoleRefs {
 			name, err := generateRoleBindingNameHash(folder.UID, namespace, fp.Subject, rr)
@@ -83,6 +98,9 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 			expectedRB.Name = name
 			expectedRB.Namespace = namespace
 			_, err = controllerutil.CreateOrUpdate(ctx, r.Client, expectedRB, func() error {
+				expectedRB.OwnerReferences = []metav1.OwnerReference{
+					*ownerRef,
+				}
 				if expectedRB.Labels == nil {
 					expectedRB.Labels = map[string]string{}
 				}
