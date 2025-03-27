@@ -35,7 +35,6 @@ import (
 
 	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
-	virtv1 "kubevirt.io/api/core/v1"
 )
 
 const NamespacedFolderOwnershipLabel = "namespaced-owner.folderview.kubevirt.io"
@@ -49,17 +48,7 @@ type NamespacedFolderReconciler struct {
 func (r *NamespacedFolderReconciler) getAllVMs(ctx context.Context, folder *v1alpha1.NamespacedFolder) ([]string, error) {
 	var vms []string
 	for _, vmName := range folder.Spec.VirtualMachines {
-		vm := virtv1.VirtualMachine{}
-		name := client.ObjectKey{Name: vmName, Namespace: folder.Namespace}
-		err := r.Client.Get(ctx, name, &vm)
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return vms, err
-			}
-			continue
-		}
-
-		vms = append(vms, vm.Name)
+		vms = append(vms, vmName)
 	}
 
 	for _, child := range folder.Spec.ChildNamespacedFolders {
@@ -106,13 +95,6 @@ func generateRoleNameHash(folderUID types.UID, namespace string, rules []rbacv1.
 }
 
 func (r *NamespacedFolderReconciler) reconcileRole(ctx context.Context, folder *v1alpha1.NamespacedFolder, roleRef *rbacv1.RoleRef, vms []string) (string, error) {
-
-	// TODO - decide if it's a cluster role or role
-	// get the rules
-	// filter rules for virtualmachine stuff and use named resource list
-	// make sure list/watch for all vms in namespace
-	// create a new role and add ownership label
-	// return the name of the role
 
 	var rules []rbacv1.PolicyRule
 
@@ -305,8 +287,8 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	rList := rbacv1.RoleBindingList{}
-	if err := r.Client.List(ctx, &rbList, client.MatchingLabels(ownerLabels)); err != nil {
+	rList := rbacv1.RoleList{}
+	if err := r.Client.List(ctx, &rList, client.MatchingLabels(ownerLabels)); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -314,7 +296,6 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	expectedRoleBindings := map[string]bool{}
 	expectedRoles := map[string]bool{}
 
-	log.Info(fmt.Sprintf("NAMESPACE: %s\n", folder.Namespace))
 	appliedRoleBindings, appliedRoles, err := r.reconcileFolderPermissions(ctx, folder, vms)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -335,6 +316,7 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			log.Info(fmt.Sprintf("Deleted unused roleBinding: %s\n", roleBinding.Name))
 		}
 	}
 	// Cleanup unused roles for this folder
@@ -345,6 +327,7 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			log.Info(fmt.Sprintf("Deleted unused role: %s\n", role.Name))
 		}
 	}
 

@@ -4,6 +4,18 @@ metadata:
   labels:
     app.kubernetes.io/name: kubevirt-folder-view
     app.kubernetes.io/managed-by: kustomize
-  name: namespacedfolder-sample
+  name: folder-test
 spec:
-  # TODO(user): Add fields here
+  virtualMachines:
+  - vm1
+  - vm2
+  childClusterFolders:
+  - folder-user
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: test-user
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: admin
