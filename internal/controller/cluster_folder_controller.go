@@ -122,7 +122,7 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 }
 
 func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder) ([]corev1.Namespace, error) {
-	var folderNamespaces []corev1.Namespace
+	folderNamespaces := []corev1.Namespace{}
 	for _, nsName := range folder.Spec.Namespaces {
 		ns := corev1.Namespace{}
 		name := client.ObjectKey{Name: nsName}

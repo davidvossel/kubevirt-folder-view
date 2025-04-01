@@ -38,7 +38,7 @@ type ClusterFolderSpec struct {
 
 // ClusterFolderStatus defines the observed state of ClusterFolder.
 type ClusterFolderStatus struct {
-	//ParentClusterFolder string `json:"parentClusterFolders,omitempty"`
+	// ParentClusterFolder string `json:"parentClusterFolders,omitempty"`
 }
 
 // +kubebuilder:object:root=true

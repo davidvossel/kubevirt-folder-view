@@ -59,11 +59,9 @@ func getNamespacedFolderOwnerReference(folder *v1alpha1.NamespacedFolder) *metav
 }
 
 func (r *NamespacedFolderReconciler) getAllVMs(ctx context.Context, folder *v1alpha1.NamespacedFolder) ([]string, error) {
-	var vms []string
-	for _, vmName := range folder.Spec.VirtualMachines {
-		vms = append(vms, vmName)
-	}
+	vms := []string{}
 
+	vms = append(vms, folder.Spec.VirtualMachines...)
 	for _, child := range folder.Spec.ChildNamespacedFolders {
 		childNamespacedFolder := v1alpha1.NamespacedFolder{}
 		name := client.ObjectKey{Name: child}
@@ -142,7 +140,7 @@ func (r *NamespacedFolderReconciler) reconcileRole(ctx context.Context, folder *
 		return "", nil
 	}
 
-	//filter rules and add resource names to them
+	// filter rules and add resource names to them
 	newRules := []rbacv1.PolicyRule{}
 
 	for _, rule := range rules {
