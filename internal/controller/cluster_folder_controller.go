@@ -175,6 +175,7 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// TODO handle nested folder loops and identical namespace entries across multiple folders
 	// Get all namespaces and child folder namespaces for this folder
 	folderNamespaces, err := r.getAllNamespaces(ctx, folder)
 	if err != nil {

@@ -292,6 +292,7 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	// TODO handle nested folder loops and identical VM entries across multiple folders
 	// Get all vms and child folder vms for this folder
 	vms, err := r.getAllVMs(ctx, folder)
 	if err != nil {
