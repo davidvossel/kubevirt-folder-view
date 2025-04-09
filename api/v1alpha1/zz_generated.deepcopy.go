@@ -113,17 +113,17 @@ func (in *ClusterFolderSpec) DeepCopyInto(out *ClusterFolderSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Namespaces != nil {
+		in, out := &in.Namespaces, &out.Namespaces
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.FolderPermissions != nil {
 		in, out := &in.FolderPermissions, &out.FolderPermissions
 		*out = make([]ClusterFolderPermission, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.Namespaces != nil {
-		in, out := &in.Namespaces, &out.Namespaces
-		*out = make([]string, len(*in))
-		copy(*out, *in)
 	}
 }
 
@@ -219,17 +219,17 @@ func (in *NamespacedFolderSpec) DeepCopyInto(out *NamespacedFolderSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.VirtualMachines != nil {
+		in, out := &in.VirtualMachines, &out.VirtualMachines
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.FolderPermissions != nil {
 		in, out := &in.FolderPermissions, &out.FolderPermissions
 		*out = make([]ClusterFolderPermission, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.VirtualMachines != nil {
-		in, out := &in.VirtualMachines, &out.VirtualMachines
-		*out = make([]string, len(*in))
-		copy(*out, *in)
 	}
 }
 
