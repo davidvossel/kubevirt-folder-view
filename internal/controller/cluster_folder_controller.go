@@ -123,6 +123,93 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 	return appliedRBs, nil
 }
 
+func (r *ClusterFolderReconciler) clearOwnership(ctx context.Context, oldFolderName string, childNamespace string, childFolderName string) error {
+
+	// Remove references to Namespace from old folder
+	oldFolder := &v1alpha1.ClusterFolder{}
+	oldFolderNamespacedName := client.ObjectKey{Name: oldFolderName}
+	err := r.Client.Get(ctx, oldFolderNamespacedName, oldFolder)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	} else if err != nil && !apierrors.IsNotFound(err) {
+		// folder no longer exists, ignore
+		return nil
+	}
+
+	modified := false
+	if childNamespace != "" {
+		result := []string{}
+		for _, curNS := range oldFolder.Spec.Namespaces {
+			if curNS != childNamespace {
+				result = append(result, curNS)
+			} else {
+				modified = true
+			}
+		}
+		oldFolder.Spec.Namespaces = result
+	}
+	if childFolderName != "" {
+		result := []string{}
+		for _, cur := range oldFolder.Spec.ChildClusterFolders {
+			if cur != childFolderName {
+				result = append(result, cur)
+			} else {
+				modified = true
+			}
+		}
+		oldFolder.Spec.ChildClusterFolders = result
+	}
+
+	if modified {
+		err := r.Client.Update(ctx, oldFolder)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ClusterFolderReconciler) claimChildClusterFolders(ctx context.Context, folder *v1alpha1.ClusterFolder) error {
+	for _, childName := range folder.Spec.ChildClusterFolders {
+		child := &v1alpha1.ClusterFolder{}
+		name := client.ObjectKey{Name: childName}
+		err := r.Client.Get(ctx, name, child)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			continue
+		}
+
+		needsUpdate := false
+
+		if child.Labels == nil {
+			child.Labels = map[string]string{}
+		}
+		ownerName, exists := child.Labels[ClusterFolderOwnershipNameLabel]
+
+		if !exists {
+			needsUpdate = true
+		} else if ownerName != folder.Name {
+			needsUpdate = true
+			err := r.clearOwnership(ctx, ownerName, "", childName)
+			if err != nil {
+				return err
+			}
+		}
+
+		if needsUpdate {
+			child.Labels[ClusterFolderOwnershipNameLabel] = string(folder.Name)
+			err = r.Client.Update(ctx, child)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (r *ClusterFolderReconciler) claimChildNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder) error {
 	for _, nsName := range folder.Spec.Namespaces {
 		ns := &corev1.Namespace{}
@@ -146,32 +233,9 @@ func (r *ClusterFolderReconciler) claimChildNamespaces(ctx context.Context, fold
 			needsUpdate = true
 		} else if ownerName != folder.Name {
 			needsUpdate = true
-			// Remove references to Namespace from old folder
-			oldFolder := &v1alpha1.ClusterFolder{}
-			oldFolderNamespacedName := client.ObjectKey{Name: ownerName}
-			err = r.Client.Get(ctx, oldFolderNamespacedName, oldFolder)
-			if err != nil && !apierrors.IsNotFound(err) {
+			err := r.clearOwnership(ctx, ownerName, nsName, "")
+			if err != nil {
 				return err
-			} else if err != nil && !apierrors.IsNotFound(err) {
-				// folder no longer exists, ignore
-			} else {
-				result := []string{}
-				modified := false
-				for _, curNS := range oldFolder.Spec.Namespaces {
-					if curNS != nsName {
-						result = append(result, curNS)
-					} else {
-						modified = true
-					}
-				}
-
-				if modified {
-					oldFolder.Spec.Namespaces = result
-					err := r.Client.Update(ctx, oldFolder)
-					if err != nil {
-						return err
-					}
-				}
 			}
 		}
 
@@ -182,7 +246,6 @@ func (r *ClusterFolderReconciler) claimChildNamespaces(ctx context.Context, fold
 				return err
 			}
 		}
-
 	}
 
 	return nil
@@ -258,8 +321,11 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	err := r.claimChildNamespaces(ctx, folder)
-	if err != nil {
+	if err := r.claimChildClusterFolders(ctx, folder); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.claimChildNamespaces(ctx, folder); err != nil {
 		return ctrl.Result{}, err
 	}
 
