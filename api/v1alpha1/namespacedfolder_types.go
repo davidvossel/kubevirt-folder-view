@@ -22,10 +22,10 @@ import (
 
 // NamespacedFolderSpec defines the desired state of NamespacedFolder.
 type NamespacedFolderSpec struct {
-	// +kubebuilder:validation:UniqueItems=true
+	// +listType=set
 	ChildNamespacedFolders []string `json:"childNamespacedFolders,omitempty"`
 
-	// +kubebuilder:validation:UniqueItems=true
+	// +listType=set
 	VirtualMachines []string `json:"virtualMachines,omitempty"`
 
 	FolderPermissions []ClusterFolderPermission `json:"folderPermissions,omitempty"`

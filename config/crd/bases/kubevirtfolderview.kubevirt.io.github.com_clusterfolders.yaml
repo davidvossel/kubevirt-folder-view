@@ -43,7 +43,7 @@ spec:
                 items:
                   type: string
                 type: array
-                uniqueItems: true
+                x-kubernetes-list-type: set
               folderPermissions:
                 items:
                   description: |-
@@ -109,7 +109,7 @@ spec:
                 items:
                   type: string
                 type: array
-                uniqueItems: true
+                x-kubernetes-list-type: set
             type: object
           status:
             description: ClusterFolderStatus defines the observed state of ClusterFolder.

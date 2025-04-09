@@ -31,10 +31,10 @@ type ClusterFolderPermission struct {
 
 // ClusterFolderSpec defines the desired state of ClusterFolder.
 type ClusterFolderSpec struct {
-	// +kubebuilder:validation:UniqueItems=true
+	// +listType=set
 	ChildClusterFolders []string `json:"childClusterFolders,omitempty"`
 
-	// +kubebuilder:validation:UniqueItems=true
+	// +listType=set
 	Namespaces []string `json:"namespaces,omitempty"`
 
 	FolderPermissions []ClusterFolderPermission `json:"folderPermissions,omitempty"`

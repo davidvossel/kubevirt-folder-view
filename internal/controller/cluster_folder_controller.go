@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +39,8 @@ import (
 	"encoding/json"
 )
 
-const ClusterFolderOwnershipLabel = "cluster-owner.folderview.kubevirt.io"
+const ClusterFolderOwnershipUIDLabel = "cluster-owner-uid.folderview.kubevirt.io"
+const ClusterFolderOwnershipNameLabel = "cluster-owner-name.folderview.kubevirt.io"
 
 // ClusterFolderReconciler reconciles a ClusterFolder object
 type ClusterFolderReconciler struct {
@@ -104,7 +106,7 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 				if expectedRB.Labels == nil {
 					expectedRB.Labels = map[string]string{}
 				}
-				expectedRB.Labels[ClusterFolderOwnershipLabel] = string(folder.UID)
+				expectedRB.Labels[ClusterFolderOwnershipUIDLabel] = string(folder.UID)
 
 				expectedRB.Subjects = []rbacv1.Subject{fp.Subject}
 				expectedRB.RoleRef = rr
@@ -121,7 +123,72 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 	return appliedRBs, nil
 }
 
-func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder) ([]corev1.Namespace, error) {
+func (r *ClusterFolderReconciler) claimChildNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder) error {
+	for _, nsName := range folder.Spec.Namespaces {
+		ns := &corev1.Namespace{}
+		name := client.ObjectKey{Name: nsName}
+		err := r.Client.Get(ctx, name, ns)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			continue
+		}
+
+		needsUpdate := false
+
+		if ns.Labels == nil {
+			ns.Labels = map[string]string{}
+		}
+		ownerName, exists := ns.Labels[ClusterFolderOwnershipNameLabel]
+
+		if !exists {
+			needsUpdate = true
+		} else if ownerName != folder.Name {
+			needsUpdate = true
+			// Remove references to Namespace from old folder
+			oldFolder := &v1alpha1.ClusterFolder{}
+			oldFolderNamespacedName := client.ObjectKey{Name: ownerName}
+			err = r.Client.Get(ctx, oldFolderNamespacedName, oldFolder)
+			if err != nil && !apierrors.IsNotFound(err) {
+				return err
+			} else if err != nil && !apierrors.IsNotFound(err) {
+				// folder no longer exists, ignore
+			} else {
+				result := []string{}
+				modified := false
+				for _, curNS := range oldFolder.Spec.Namespaces {
+					if curNS != nsName {
+						result = append(result, curNS)
+					} else {
+						modified = true
+					}
+				}
+
+				if modified {
+					oldFolder.Spec.Namespaces = result
+					err := r.Client.Update(ctx, oldFolder)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		if needsUpdate {
+			ns.Labels[ClusterFolderOwnershipNameLabel] = string(folder.Name)
+			err = r.Client.Update(ctx, ns)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder, observed map[string]struct{}) ([]corev1.Namespace, bool, error) {
 	folderNamespaces := []corev1.Namespace{}
 	for _, nsName := range folder.Spec.Namespaces {
 		ns := corev1.Namespace{}
@@ -129,10 +196,17 @@ func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *
 		err := r.Client.Get(ctx, name, &ns)
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				return folderNamespaces, err
+				return folderNamespaces, false, err
 			}
 			continue
 		}
+
+		observedKey := fmt.Sprintf("namespace/%s", ns.Name)
+		_, exists := observed[observedKey]
+		if exists {
+			return folderNamespaces, true, nil
+		}
+		observed[observedKey] = struct{}{}
 
 		folderNamespaces = append(folderNamespaces, ns)
 	}
@@ -144,20 +218,29 @@ func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *
 		err := r.Client.Get(ctx, name, &childClusterFolder)
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				return folderNamespaces, err
+				return folderNamespaces, false, err
 			}
 			continue
 		}
 
-		childNamespaces, err := r.getAllNamespaces(ctx, &childClusterFolder)
+		observedKey := fmt.Sprintf("clusterfolder/%s", childClusterFolder.Name)
+		_, exists := observed[observedKey]
+		if exists {
+			return folderNamespaces, true, nil
+		}
+		observed[observedKey] = struct{}{}
+
+		childNamespaces, loopDetected, err := r.getAllNamespaces(ctx, &childClusterFolder, observed)
 		if err != nil {
-			return folderNamespaces, err
+			return folderNamespaces, false, err
+		} else if loopDetected {
+			return folderNamespaces, true, nil
 		}
 
 		folderNamespaces = append(folderNamespaces, childNamespaces...)
 	}
 
-	return folderNamespaces, nil
+	return folderNamespaces, false, nil
 }
 
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders,verbs=get;list;watch;create;update;patch;delete
@@ -175,17 +258,28 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	// TODO handle nested folder loops and identical namespace entries across multiple folders
-	// Get all namespaces and child folder namespaces for this folder
-	folderNamespaces, err := r.getAllNamespaces(ctx, folder)
+	err := r.claimChildNamespaces(ctx, folder)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	// Get all namespaces and child folder namespaces for this folder
+	//
+	// --- Loop Handling ---
+	// If loop is detected, block reconciliation and add requeue. The idea here is that the
+	// loop will be resolved once the nested folders are reconciled.
+	folderNamespaces, loopDetected, err := r.getAllNamespaces(ctx, folder, map[string]struct{}{})
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if loopDetected {
+		log.Info(fmt.Sprintf("Loop detected in cluster folder [%s], requeuing", folder.Name))
+		return ctrl.Result{RequeueAfter: time.Duration(5 * time.Second)}, nil
 	}
 
 	rbList := rbacv1.RoleBindingList{}
 
 	rbLabels := map[string]string{
-		ClusterFolderOwnershipLabel: string(folder.UID),
+		ClusterFolderOwnershipUIDLabel: string(folder.UID),
 	}
 	if err := r.Client.List(ctx, &rbList, client.MatchingLabels(rbLabels)); err != nil {
 		return ctrl.Result{}, err
