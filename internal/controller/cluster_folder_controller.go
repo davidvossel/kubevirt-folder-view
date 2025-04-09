@@ -334,6 +334,8 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// --- Loop Handling ---
 	// If loop is detected, block reconciliation and add requeue. The idea here is that the
 	// loop will be resolved once the nested folders are reconciled.
+	//
+	// TODO, need to handle folders being parents of each other.
 	folderNamespaces, loopDetected, err := r.getAllNamespaces(ctx, folder, map[string]struct{}{})
 	if err != nil {
 		return ctrl.Result{}, err
