@@ -21,9 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ClusterFolderPermission defines what roles are applied to a subject
+// FolderPermission defines what roles are applied to a subject
 // in order for that subject to have permissions to access the folder
-type ClusterFolderPermission struct {
+type FolderPermission struct {
 	Subject rbacv1.Subject `json:"subject"`
 
 	RoleRefs []rbacv1.RoleRef `json:"roleRefs,omitempty"`
@@ -32,12 +32,14 @@ type ClusterFolderPermission struct {
 // ClusterFolderSpec defines the desired state of ClusterFolder.
 type ClusterFolderSpec struct {
 	// +listType=set
+	// +kubebuilder:validation:MaxItems=250
 	ChildClusterFolders []string `json:"childClusterFolders,omitempty"`
 
 	// +listType=set
+	// +kubebuilder:validation:MaxItems=250
 	Namespaces []string `json:"namespaces,omitempty"`
 
-	FolderPermissions []ClusterFolderPermission `json:"folderPermissions,omitempty"`
+	FolderPermissions []FolderPermission `json:"folderPermissions,omitempty"`
 }
 
 // ClusterFolderStatus defines the observed state of ClusterFolder.
@@ -50,6 +52,7 @@ type ClusterFolderStatus struct {
 // +kubebuilder:resource:scope=Cluster
 
 // ClusterFolder is the Schema for the folders API.
+// +kubebuilder:validation:XValidation:rule="!has(self.spec.childClusterFolders) || !(self.metadata.name in self.spec.childClusterFolders)",message="parent folder can not contain child folder with the same name as the parent"
 type ClusterFolder struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

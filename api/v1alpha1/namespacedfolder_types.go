@@ -23,12 +23,14 @@ import (
 // NamespacedFolderSpec defines the desired state of NamespacedFolder.
 type NamespacedFolderSpec struct {
 	// +listType=set
+	// +kubebuilder:validation:MaxItems=250
 	ChildNamespacedFolders []string `json:"childNamespacedFolders,omitempty"`
 
 	// +listType=set
+	// +kubebuilder:validation:MaxItems=250
 	VirtualMachines []string `json:"virtualMachines,omitempty"`
 
-	FolderPermissions []ClusterFolderPermission `json:"folderPermissions,omitempty"`
+	FolderPermissions []FolderPermission `json:"folderPermissions,omitempty"`
 }
 
 // NamespacedFolderStatus defines the observed state of NamespacedFolder.
@@ -39,6 +41,7 @@ type NamespacedFolderStatus struct {
 // +kubebuilder:subresource:status
 
 // NamespacedFolder is the Schema for the namespacedfolders API.
+// +kubebuilder:validation:XValidation:rule="!has(self.spec.childNamespacedFolders) || !(self.metadata.name in self.spec.childNamespacedFolders)",message="parent folder can not contain child folder with the same name as the parent"
 type NamespacedFolder struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

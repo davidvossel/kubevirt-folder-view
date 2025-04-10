@@ -42,12 +42,13 @@ spec:
               childClusterFolders:
                 items:
                   type: string
+                maxItems: 250
                 type: array
                 x-kubernetes-list-type: set
               folderPermissions:
                 items:
                   description: |-
-                    ClusterFolderPermission defines what roles are applied to a subject
+                    FolderPermission defines what roles are applied to a subject
                     in order for that subject to have permissions to access the folder
                   properties:
                     roleRefs:
@@ -108,6 +109,7 @@ spec:
               namespaces:
                 items:
                   type: string
+                maxItems: 250
                 type: array
                 x-kubernetes-list-type: set
             type: object
@@ -115,6 +117,10 @@ spec:
             description: ClusterFolderStatus defines the observed state of ClusterFolder.
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: parent folder can not contain child folder with the same name as
+            the parent
+          rule: '!has(self.spec.childClusterFolders) || !(self.metadata.name in self.spec.childClusterFolders)'
     served: true
     storage: true
     subresources:
