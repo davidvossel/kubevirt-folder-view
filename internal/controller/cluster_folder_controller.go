@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,7 +28,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +44,7 @@ import (
 
 const ClusterFolderOwnershipUIDLabel = "cluster-owner-uid.folderview.kubevirt.io"
 const ClusterFolderOwnershipNameLabel = "cluster-owner-name.folderview.kubevirt.io"
+const ClusterFolderOwnershipClaimTimestampLabel = "cluster-owner-claim-timestamp.folderview.kubevirt.io"
 
 // ClusterFolderReconciler reconciles a ClusterFolder object
 type ClusterFolderReconciler struct {
@@ -187,7 +191,6 @@ func (r *ClusterFolderReconciler) claimChildClusterFolders(ctx context.Context, 
 			child.Labels = map[string]string{}
 		}
 		ownerName, exists := child.Labels[ClusterFolderOwnershipNameLabel]
-
 		if !exists {
 			needsUpdate = true
 		} else if ownerName != folder.Name {
@@ -198,8 +201,14 @@ func (r *ClusterFolderReconciler) claimChildClusterFolders(ctx context.Context, 
 			}
 		}
 
+		_, exists = child.Labels[ClusterFolderOwnershipClaimTimestampLabel]
+		if !exists {
+			needsUpdate = true
+		}
+
 		if needsUpdate {
 			child.Labels[ClusterFolderOwnershipNameLabel] = string(folder.Name)
+			child.Labels[ClusterFolderOwnershipClaimTimestampLabel] = fmt.Sprintf("%d", time.Now().UTC().Unix())
 			err = r.Client.Update(ctx, child)
 			if err != nil {
 				return err
@@ -251,7 +260,93 @@ func (r *ClusterFolderReconciler) claimChildNamespaces(ctx context.Context, fold
 	return nil
 }
 
-func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder, observed map[string]struct{}) ([]corev1.Namespace, bool, error) {
+func (r *ClusterFolderReconciler) loopChainWinner(ctx context.Context, loopedFolder *v1alpha1.ClusterFolder, curFolder *v1alpha1.ClusterFolder) (*v1alpha1.ClusterFolder, error) {
+
+	for _, child := range curFolder.Spec.ChildClusterFolders {
+		childClusterFolder := &v1alpha1.ClusterFolder{}
+		name := client.ObjectKey{Name: child}
+
+		err := r.Client.Get(ctx, name, childClusterFolder)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil, err
+			}
+			continue
+		}
+
+		if childClusterFolder.Name == loopedFolder.Name {
+			return childClusterFolder, nil
+		}
+
+		curWinner, err := r.loopChainWinner(ctx, loopedFolder, childClusterFolder)
+		if err != nil {
+			return nil, err
+		} else if curWinner == nil {
+			return nil, nil
+		}
+
+		curTS, ok := curWinner.Labels[ClusterFolderOwnershipClaimTimestampLabel]
+		if !ok {
+			return curWinner, nil
+		}
+
+		childTS, ok := childClusterFolder.Labels[ClusterFolderOwnershipClaimTimestampLabel]
+		if !ok {
+			return childClusterFolder, nil
+		}
+
+		curTSInt, err := strconv.ParseInt(curTS, 10, 64)
+		if err != nil {
+			return curWinner, nil
+		}
+
+		childTSInt, err := strconv.ParseInt(childTS, 10, 64)
+		if err != nil {
+			return childClusterFolder, nil
+		}
+
+		if curTSInt > childTSInt {
+			return curWinner, nil
+		}
+
+		return childClusterFolder, nil
+	}
+
+	return nil, nil
+}
+
+// Lazy rectify of loops by removing the most recent claim in the chain.
+//
+// The controller handles loops by removing the item in the looped chain that
+// is most recent. This has the effect of breaking the loop and orphaning
+// the folder that caused the loop.
+//
+// While this will make the folder consistent, it can lead to
+// unexpected outcomes for users who didn't realize they were creating
+// a looped folder hierarchy. Ideally we want a validating webhook to
+// catch these loops before they occur, but given that these are distributed
+// objects being worked on across multiple threads (both the controller threads
+// and validating webhook threads) we can't guarantee a loop won't occur.
+//
+// Strictly guaranteeing no loops are introduced would require distributed locking
+// and expensive non-cached lookups.
+func (r *ClusterFolderReconciler) reconcileClusterFolderLoop(ctx context.Context, loopedFolder *v1alpha1.ClusterFolder) error {
+
+	winner, err := r.loopChainWinner(ctx, loopedFolder, loopedFolder)
+	if err != nil {
+		return err
+	} else if winner == nil {
+		return nil
+	}
+	ownerName, exists := winner.Labels[ClusterFolderOwnershipNameLabel]
+	if !exists {
+		return nil
+	}
+
+	return r.clearOwnership(ctx, ownerName, "", winner.Name)
+}
+
+func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *v1alpha1.ClusterFolder, observed map[string]struct{}) ([]corev1.Namespace, *v1alpha1.ClusterFolder, error) {
 	folderNamespaces := []corev1.Namespace{}
 	for _, nsName := range folder.Spec.Namespaces {
 		ns := corev1.Namespace{}
@@ -259,17 +354,10 @@ func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *
 		err := r.Client.Get(ctx, name, &ns)
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				return folderNamespaces, false, err
+				return folderNamespaces, nil, err
 			}
 			continue
 		}
-
-		observedKey := fmt.Sprintf("namespace/%s", ns.Name)
-		_, exists := observed[observedKey]
-		if exists {
-			return folderNamespaces, true, nil
-		}
-		observed[observedKey] = struct{}{}
 
 		folderNamespaces = append(folderNamespaces, ns)
 	}
@@ -281,29 +369,28 @@ func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, folder *
 		err := r.Client.Get(ctx, name, &childClusterFolder)
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				return folderNamespaces, false, err
+				return folderNamespaces, nil, err
 			}
 			continue
 		}
 
-		observedKey := fmt.Sprintf("clusterfolder/%s", childClusterFolder.Name)
-		_, exists := observed[observedKey]
+		_, exists := observed[childClusterFolder.Name]
 		if exists {
-			return folderNamespaces, true, nil
+			return folderNamespaces, &childClusterFolder, nil
 		}
-		observed[observedKey] = struct{}{}
+		observed[childClusterFolder.Name] = struct{}{}
 
-		childNamespaces, loopDetected, err := r.getAllNamespaces(ctx, &childClusterFolder, observed)
+		childNamespaces, loopedChild, err := r.getAllNamespaces(ctx, &childClusterFolder, observed)
 		if err != nil {
-			return folderNamespaces, false, err
-		} else if loopDetected {
-			return folderNamespaces, true, nil
+			return folderNamespaces, nil, err
+		} else if loopedChild != nil {
+			return folderNamespaces, loopedChild, nil
 		}
 
 		folderNamespaces = append(folderNamespaces, childNamespaces...)
 	}
 
-	return folderNamespaces, false, nil
+	return folderNamespaces, nil, nil
 }
 
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folders,verbs=get;list;watch;create;update;patch;delete
@@ -314,6 +401,7 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	folder := &v1alpha1.ClusterFolder{}
 
+	log.Info(fmt.Sprintf("Reconciling cluster folder [%s]", req.NamespacedName.Name))
 	if err := r.Client.Get(ctx, req.NamespacedName, folder); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -336,11 +424,15 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// loop will be resolved once the nested folders are reconciled.
 	//
 	// TODO, need to handle folders being parents of each other.
-	folderNamespaces, loopDetected, err := r.getAllNamespaces(ctx, folder, map[string]struct{}{})
+	folderNamespaces, loopedChildFolderDetected, err := r.getAllNamespaces(ctx, folder, map[string]struct{}{})
 	if err != nil {
 		return ctrl.Result{}, err
-	} else if loopDetected {
-		log.Info(fmt.Sprintf("Loop detected in cluster folder [%s], requeuing", folder.Name))
+	} else if loopedChildFolderDetected != nil {
+		err := r.reconcileClusterFolderLoop(ctx, loopedChildFolderDetected)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		log.Info(fmt.Sprintf("Loop detected in cluster folder [%s], requeuing", loopedChildFolderDetected.Name))
 		return ctrl.Result{RequeueAfter: time.Duration(5 * time.Second)}, nil
 	}
 
@@ -356,7 +448,6 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Create RoleBindings for this folder in every namespace
 	expectedRBs := map[string]bool{}
 	for _, ns := range folderNamespaces {
-		log.Info(fmt.Sprintf("NAMESPACE: %s\n", ns.Name))
 		appliedRBs, err := r.reconcileFolderPermissions(ctx, folder, ns.Name)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -380,17 +471,79 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
+func (r *ClusterFolderReconciler) namespaceWatchHandler(ctx context.Context, resource client.Object) []reconcile.Request {
+	name := resource.GetName()
+	labels := resource.GetLabels()
+
+	_, exists := labels[ClusterFolderOwnershipNameLabel]
+	if exists {
+		return nil
+	}
+
+	log := logger.FromContext(ctx)
+
+	folders := v1alpha1.ClusterFolderList{}
+	if err := r.Client.List(ctx, &folders); err != nil {
+		return nil
+	}
+
+	requests := []reconcile.Request{}
+	for _, parent := range folders.Items {
+		for _, child := range parent.Spec.Namespaces {
+			if child == name {
+				log.Info(fmt.Sprintf("queueing parent folder [%s] that has not claimed newly discovered namespace [%s]", parent.Name, name))
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: parent.Name}})
+			}
+		}
+	}
+
+	return requests
+}
+
+func (r *ClusterFolderReconciler) folderWatchHandler(ctx context.Context, resource client.Object) []reconcile.Request {
+	name := resource.GetName()
+	labels := resource.GetLabels()
+
+	_, exists := labels[ClusterFolderOwnershipNameLabel]
+	if exists {
+		return nil
+	}
+
+	log := logger.FromContext(ctx)
+
+	folders := v1alpha1.ClusterFolderList{}
+	if err := r.Client.List(ctx, &folders); err != nil {
+		return nil
+	}
+
+	requests := []reconcile.Request{}
+	for _, parent := range folders.Items {
+		for _, child := range parent.Spec.ChildClusterFolders {
+			if child == name {
+
+				log.Info(fmt.Sprintf("queueing parent folder [%s] that has not claimed newly discovered child [%s]", parent.Name, name))
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: parent.Name}})
+			}
+		}
+	}
+
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterFolderReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ClusterFolder{}).
 		Named("folder").
-		// TODO - reenqueue folder if role or namespace objects change.
-		//		Watches(
-		//			&corev1.Namespace{},
-		//			handler.EnqueueRequestsFromMapFunc(),
-		//		).
+		Watches(
+			&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(r.namespaceWatchHandler),
+		).
+		Watches(
+			&v1alpha1.ClusterFolder{},
+			handler.EnqueueRequestsFromMapFunc(r.folderWatchHandler),
+		).
 		//		Watches(
 		//			&rbacv1.RoleBinding{},
 		//			handler.EnqueueRequestsFromMapFunc(),
