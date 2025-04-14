@@ -7,7 +7,7 @@ rules:
 - apiGroups:
   - kubevirtfolderview.kubevirt.io.github.com
   resources:
-  - namespacedfolders
+  - folderindices
   verbs:
   - create
   - delete
@@ -19,13 +19,13 @@ rules:
 - apiGroups:
   - kubevirtfolderview.kubevirt.io.github.com
   resources:
-  - namespacedfolders/finalizers
+  - folderindices/finalizers
   verbs:
   - update
 - apiGroups:
   - kubevirtfolderview.kubevirt.io.github.com
   resources:
-  - namespacedfolders/status
+  - folderindices/status
   verbs:
   - get
   - patch

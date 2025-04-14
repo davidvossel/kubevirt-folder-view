@@ -4,6 +4,7 @@
 resources:
 - bases/kubevirtfolderview.kubevirt.io.github.com_clusterfolders.yaml
 - bases/kubevirtfolderview.kubevirt.io.github.com_namespacedfolders.yaml
+- bases/kubevirtfolderview.kubevirt.io.github.com_folderindices.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
