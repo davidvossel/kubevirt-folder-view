@@ -49,6 +49,7 @@ type FolderIndexStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // FolderIndex is the Schema for the folderindices API.
 type FolderIndex struct {
