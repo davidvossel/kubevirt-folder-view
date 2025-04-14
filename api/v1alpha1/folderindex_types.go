@@ -20,22 +20,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type NamespacedFolderEntry struct {
+	FolderName              string                  `json:"name"`
+	NamespacedFolderEntries []NamespacedFolderEntry `json:"namespacedFolderEntries,omitempty"`
+	VirtualMachines         []string                `json:"virtualMachines,omitempty"`
+}
+
+type NamespaceEntry struct {
+	Namespace               string                  `json:"namespace"`
+	NamespacedFolderEntries []NamespacedFolderEntry `json:"namespacedFolderEntries,omitempty"`
+}
+
+type ClusterFolderEntry struct {
+	FolderName           string               `json:"name"`
+	ClusterFolderEntries []ClusterFolderEntry `json:"clusterFolderEntries,omitempty"`
+	NamespaceEntries     []NamespaceEntry     `json:"namespaceEntries,omitempty"`
+}
 
 // FolderIndexSpec defines the desired state of FolderIndex.
 type FolderIndexSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of FolderIndex. Edit folderindex_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ClusterFolderEntries []ClusterFolderEntry `json:"clusterFolderEntries,omitempty"`
+	NamespaceEntries     []NamespaceEntry     `json:"namespaceEntries,omitempty"`
 }
 
 // FolderIndexStatus defines the observed state of FolderIndex.
 type FolderIndexStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 // +kubebuilder:object:root=true
