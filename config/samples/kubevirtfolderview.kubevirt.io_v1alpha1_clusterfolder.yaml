@@ -6,14 +6,10 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: folder-admin
 spec:
-  namespaces:
-  - kube-system
-  childClusterFolders:
-  - folder-user
   folderPermissions:
   - subject:
       kind: ServiceAccount
-      name: test-user
+      name: test-admin
     roleRefs:
     - apiGroup: rbac.authorization.k8s.io
       kind: ClusterRole
@@ -27,5 +23,11 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: folder-user
 spec:
-  namespaces:
-  - default
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: test-user
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit

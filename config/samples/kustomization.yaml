@@ -1,5 +1,6 @@
 ## Append samples of your project ##
 resources:
-- kubevirtfolderview.kubevirt.io_v1alpha1_folder.yaml
+- kubevirtfolderview.kubevirt.io_v1alpha1_clusterfolder.yaml
 - kubevirtfolderview.kubevirt.io_v1alpha1_namespacedfolder.yaml
+- kubevirtfolderview.kubevirt.io_v1alpha1_folderindex.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

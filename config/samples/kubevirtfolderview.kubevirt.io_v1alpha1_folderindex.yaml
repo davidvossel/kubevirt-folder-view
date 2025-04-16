@@ -1,0 +1,17 @@
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: FolderIndex
+metadata:
+  labels:
+    app.kubernetes.io/name: kubevirt-folder-view
+    app.kubernetes.io/managed-by: kustomize
+  name: root
+spec:
+  clusterFolderEntries:
+    folder-admin:
+      childFolders:
+        - folder-user
+      namespaces:
+        - kube-system
+    folder-user:
+      namespaces:
+        - default

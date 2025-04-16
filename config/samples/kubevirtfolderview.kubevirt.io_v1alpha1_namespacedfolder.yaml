@@ -4,13 +4,8 @@ metadata:
   labels:
     app.kubernetes.io/name: kubevirt-folder-view
     app.kubernetes.io/managed-by: kustomize
-  name: folder-test
+  name: folder-namespaced-user
 spec:
-  virtualMachines:
-  - vm1
-  - vm2
-  childClusterFolders:
-  - folder-user
   folderPermissions:
   - subject:
       kind: ServiceAccount
