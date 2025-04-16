@@ -6,7 +6,7 @@ This project introduces the concept of a `folder` within Kubernetes to organize 
 
 ## FolderIndex
 
-The **FolderIndex** object contains all the parent and child relationships between ClusterFolders and NamespacedFolders. This centralized object can be thought of the database from which the folder tree is organized. When a change is made to any folder regarding the folder's relationship to owning objects, the FolderIndex is the entity that is modified to reflect this change.
+The **FolderIndex** object contains all the parent and child relationships between ClusterFolders and NamespacedFolders. This centralized object can be thought of the database from which the folder tree is organized. When a change is made to any folder regarding the folder's relationship to owning objects, the FolderIndex is the entity that is modified to apply this change.
 
 ## ClusterFolders
 
