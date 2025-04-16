@@ -26,12 +26,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -41,8 +38,6 @@ import (
 )
 
 const ClusterFolderOwnershipUIDLabel = "cluster-owner-uid.folderview.kubevirt.io"
-const ClusterFolderOwnershipNameLabel = "cluster-owner-name.folderview.kubevirt.io"
-const ClusterFolderOwnershipClaimTimestampLabel = "cluster-owner-claim-timestamp.folderview.kubevirt.io"
 
 // ClusterFolderReconciler reconciles a ClusterFolder object
 type ClusterFolderReconciler struct {
@@ -215,79 +210,12 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *ClusterFolderReconciler) namespaceWatchHandler(ctx context.Context, resource client.Object) []reconcile.Request {
-	name := resource.GetName()
-	labels := resource.GetLabels()
-
-	_, exists := labels[ClusterFolderOwnershipNameLabel]
-	if exists {
-		return nil
-	}
-
-	log := logger.FromContext(ctx)
-
-	folders := v1alpha1.ClusterFolderList{}
-	if err := r.Client.List(ctx, &folders); err != nil {
-		return nil
-	}
-
-	requests := []reconcile.Request{}
-	for _, parent := range folders.Items {
-		for _, child := range parent.Spec.Namespaces {
-			if child == name {
-				log.Info(fmt.Sprintf("queueing parent folder [%s] that has not claimed newly discovered namespace [%s]", parent.Name, name))
-				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: parent.Name}})
-			}
-		}
-	}
-
-	return requests
-}
-
-func (r *ClusterFolderReconciler) folderWatchHandler(ctx context.Context, resource client.Object) []reconcile.Request {
-	name := resource.GetName()
-	labels := resource.GetLabels()
-
-	_, exists := labels[ClusterFolderOwnershipNameLabel]
-	if exists {
-		return nil
-	}
-
-	log := logger.FromContext(ctx)
-
-	folders := v1alpha1.ClusterFolderList{}
-	if err := r.Client.List(ctx, &folders); err != nil {
-		return nil
-	}
-
-	requests := []reconcile.Request{}
-	for _, parent := range folders.Items {
-		for _, child := range parent.Spec.ChildClusterFolders {
-			if child == name {
-
-				log.Info(fmt.Sprintf("queueing parent folder [%s] that has not claimed newly discovered child [%s]", parent.Name, name))
-				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: parent.Name}})
-			}
-		}
-	}
-
-	return requests
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterFolderReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ClusterFolder{}).
 		Named("folder").
-		Watches(
-			&corev1.Namespace{},
-			handler.EnqueueRequestsFromMapFunc(r.namespaceWatchHandler),
-		).
-		Watches(
-			&v1alpha1.ClusterFolder{},
-			handler.EnqueueRequestsFromMapFunc(r.folderWatchHandler),
-		).
 		//		Watches(
 		//			&rbacv1.RoleBinding{},
 		//			handler.EnqueueRequestsFromMapFunc(),
