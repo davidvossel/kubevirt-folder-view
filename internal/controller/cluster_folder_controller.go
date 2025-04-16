@@ -127,7 +127,7 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 	return appliedRBs, nil
 }
 
-func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, root *v1alpha1.FolderIndex, folderName string) ([]string, error) {
+func (r *ClusterFolderReconciler) getAllNamespaces(root *v1alpha1.FolderIndex, folderName string) ([]string, error) {
 
 	folderNamespaces := []string{}
 
@@ -143,7 +143,7 @@ func (r *ClusterFolderReconciler) getAllNamespaces(ctx context.Context, root *v1
 
 	for _, childFolderName := range entry.ChildFolders {
 		var err error
-		folderNamespaces, err = r.getAllNamespaces(ctx, root, childFolderName)
+		folderNamespaces, err = r.getAllNamespaces(root, childFolderName)
 		if err != nil {
 			return folderNamespaces, err
 		}
@@ -175,7 +175,7 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// Get all namespaces and child folder namespaces for this folder
-	folderNamespaces, err := r.getAllNamespaces(ctx, root, folder.Name)
+	folderNamespaces, err := r.getAllNamespaces(root, folder.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
