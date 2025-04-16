@@ -21,26 +21,19 @@ import (
 )
 
 type NamespacedFolderEntry struct {
-	FolderName              string                  `json:"name"`
-	NamespacedFolderEntries []NamespacedFolderEntry `json:"namespacedFolderEntries,omitempty"`
-	VirtualMachines         []string                `json:"virtualMachines,omitempty"`
-}
-
-type NamespaceEntry struct {
-	Namespace               string                  `json:"namespace"`
-	NamespacedFolderEntries []NamespacedFolderEntry `json:"namespacedFolderEntries,omitempty"`
+	ChildFolders    []string `json:"childFolders,omitempty"`
+	VirtualMachines []string `json:"virtualMachines,omitempty"`
 }
 
 type ClusterFolderEntry struct {
-	FolderName           string               `json:"name"`
-	ClusterFolderEntries []ClusterFolderEntry `json:"clusterFolderEntries,omitempty"`
-	NamespaceEntries     []NamespaceEntry     `json:"namespaceEntries,omitempty"`
+	ChildFolders []string `json:"childFolders,omitempty"`
+	Namespaces   []string `json:"namespaces,omitempty"`
 }
 
 // FolderIndexSpec defines the desired state of FolderIndex.
 type FolderIndexSpec struct {
-	ClusterFolderEntries []ClusterFolderEntry `json:"clusterFolderEntries,omitempty"`
-	NamespaceEntries     []NamespaceEntry     `json:"namespaceEntries,omitempty"`
+	ClusterFolderEntries    map[string]ClusterFolderEntry    `json:"clusterFolderEntries,omitempty"`
+	NamespacedFolderEntries map[string]NamespacedFolderEntry `json:"namespacedFolderEntries,omitempty"`
 }
 
 // FolderIndexStatus defines the observed state of FolderIndex.
