@@ -58,28 +58,24 @@ func getNamespacedFolderOwnerReference(folder *v1alpha1.NamespacedFolder) *metav
 	}
 }
 
-func (r *NamespacedFolderReconciler) getAllVMs(ctx context.Context, folder *v1alpha1.NamespacedFolder) ([]string, error) {
+func (r *NamespacedFolderReconciler) getAllVMs(root *v1alpha1.FolderIndex, folderName string) ([]string, error) {
 	vms := []string{}
 
-	vms = append(vms, folder.Spec.VirtualMachines...)
-	for _, child := range folder.Spec.ChildNamespacedFolders {
-		childNamespacedFolder := v1alpha1.NamespacedFolder{}
-		name := client.ObjectKey{Name: child}
+	entry, exists := root.Spec.NamespacedFolderEntries[folderName]
+	// Folder does not exist
+	// TODO garbage collect non existent folders
+	if !exists {
+		return vms, nil
+	}
 
-		err := r.Client.Get(ctx, name, &childNamespacedFolder)
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return vms, err
-			}
-			continue
-		}
+	vms = append(vms, entry.VirtualMachines...)
 
-		childVMs, err := r.getAllVMs(ctx, &childNamespacedFolder)
+	for _, childFolderName := range entry.ChildFolders {
+		var err error
+		vms, err = r.getAllVMs(root, childFolderName)
 		if err != nil {
 			return vms, err
 		}
-
-		vms = append(vms, childVMs...)
 	}
 
 	return vms, nil
@@ -283,8 +279,10 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	log := logger.FromContext(ctx)
 
+	root := &v1alpha1.FolderIndex{}
 	folder := &v1alpha1.NamespacedFolder{}
 
+	log.Info(fmt.Sprintf("Reconciling namespaced folder [%s]", req.NamespacedName.Name))
 	if err := r.Client.Get(ctx, req.NamespacedName, folder); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -292,9 +290,13 @@ func (r *NamespacedFolderReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// TODO handle nested folder loops and identical VM entries across multiple folders
+	// TODO enforce that only a single folder index named root can exist
+	if err := r.Client.Get(ctx, client.ObjectKey{Name: "root"}, root); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Get all vms and child folder vms for this folder
-	vms, err := r.getAllVMs(ctx, folder)
+	vms, err := r.getAllVMs(root, folder.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

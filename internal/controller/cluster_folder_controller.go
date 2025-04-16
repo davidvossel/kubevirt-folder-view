@@ -87,7 +87,6 @@ func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context
 	ownerRef := getClusterFolderOwnerReference(folder)
 
 	// TODO Verify Namespace exists before adding RoleBindings
-
 	for _, fp := range folder.Spec.FolderPermissions {
 		for _, rr := range fp.RoleRefs {
 			name, err := generateRoleBindingNameHash(folder.UID, namespace, fp.Subject, rr)
@@ -165,6 +164,7 @@ func (r *ClusterFolderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	// TODO enforce that only a single folder index named root can exist
 	if err := r.Client.Get(ctx, client.ObjectKey{Name: "root"}, root); err != nil {
 		return ctrl.Result{}, err
 	}
