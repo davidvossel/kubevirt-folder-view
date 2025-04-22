@@ -21,7 +21,7 @@ func printTree(root *v1alpha1.FolderIndex,
 	indention string) {
 
 	if parentClusterFolder != "" {
-		fmt.Printf("%s-ClusterFolder: [%s]\n", indention, parentClusterFolder)
+		fmt.Printf("%s* ClusterFolder: [%s]\n", indention, parentClusterFolder)
 		node, ok := root.Spec.ClusterFolderEntries[parentClusterFolder]
 		if !ok {
 			return
@@ -36,7 +36,7 @@ func printTree(root *v1alpha1.FolderIndex,
 			printTree(root, childParent, child, "", "", indention)
 		}
 	} else if parentNamespace != "" {
-		fmt.Printf("%s-Namespace: [%s]\n", indention, parentNamespace)
+		fmt.Printf("%s* Namespace: [%s]\n", indention, parentNamespace)
 		namespaceParentKey := fmt.Sprintf("NAMESPACE:%s", parentNamespace)
 		indention = fmt.Sprintf("%s  ", indention)
 		for childFolder, parentNS := range childParent {
@@ -51,12 +51,12 @@ func printTree(root *v1alpha1.FolderIndex,
 			return
 		}
 
-		fmt.Printf("%s-NamespacedFolder: [%s]\n", indention, parentNamespacedFolder)
+		fmt.Printf("%s* NamespacedFolder: [%s]\n", indention, parentNamespacedFolder)
 
 		indention = fmt.Sprintf("%s  ", indention)
 
 		for _, vm := range node.VirtualMachines {
-			fmt.Printf("%s-VM: [%s]\n", indention+"  ", vm)
+			fmt.Printf("%s* VM: [%s]\n", indention+"  ", vm)
 		}
 		for _, child := range node.ChildFolders {
 			printTree(root, childParent, "", "", child, indention)
