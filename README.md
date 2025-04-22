@@ -24,27 +24,28 @@ For example, let's say we have an organization with two departments, Development
 
 ## Example Continued... Operation Team
 
-We could start this example by modeling the Operations team. In this case, Operations has two environments, Staging and Production. This could be modeled using ClusterFolders and Namespaced to manage access to VMs across multiple namespaces. The tree view of this hierarchy would visually look like the figure below.
+We could start this example by modeling the Operations team. In this case, Operations has two environments, Staging and Production. This could be modeled using ClusterFolders and Namespaced to manage access to VMs across multiple namespaces. The tree view of this hierarchy would visually look like the figure below as rendered by the `folder-view-cli tree` command
 
-```
-- ClusterFolder: infra-admins
-    - ClusterFolder: operations
-        - ClusterFolder: production
-            - Namespace: prod-web-apps
-                - NamespacedFolder: prod-web-app-a
-                    - VM: web-app-a
-                    - VM: web-app-a-db
-                - NamespacedFolder: prod-web-app-b
-                    - VM: web-app-b
-                    - VM: web-app-b-db
-        - ClusterFolder: staging
-            - Namespace: staging-web-apps
-                - NamespacedFolder: staging-web-app-a
-                    - VM: web-app-a
-                    - VM: web-app-a-db
-                - NamespacedFolder: staging-web-app-b
-                    - VM: web-app-b
-                    - VM: web-app-b-db
+```bash
+$ folder-view-cli tree
+-ClusterFolder: [infra-admins]
+  -ClusterFolder: [operations]
+    -ClusterFolder: [production]
+      -Namespace: [prod-web-apps]
+        -NamespacedFolder: [prod-web-apps/prod-web-app-a]
+            -VM: [web-app-a]
+            -VM: [web-app-a-db]
+        -NamespacedFolder: [prod-web-apps/prod-web-app-b]
+            -VM: [web-app-b]
+            -VM: [web-app-b-db]
+    -ClusterFolder: [staging]
+      -Namespace: [staging-web-apps]
+        -NamespacedFolder: [staging-web-apps/staging-web-app-a]
+            -VM: [web-app-a]
+            -VM: [web-app-a-db]
+        -NamespacedFolder: [staging-web-apps/staging-web-app-b]
+            -VM: [web-app-b]
+            -VM: [web-app-b-db]
 ```
 
 In yaml form, the root FolderIndex object that represents this folder hierarchy in the backend API would look like the figure below.
