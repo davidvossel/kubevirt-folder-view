@@ -54,7 +54,7 @@ func printTree(data *printTreeData,
 		namespaceParentKey := fmt.Sprintf("NAMESPACE:%s", parentNamespace)
 		for childFolder, parentNS := range data.childParentMap {
 			if parentNS != namespaceParentKey {
-				return
+				continue
 			}
 			printTree(data, "", "", childFolder, indention+"  ")
 		}
@@ -63,6 +63,8 @@ func printTree(data *printTreeData,
 		if !exists {
 			return
 		}
+
+		// Print all VMs in a namespace that are not nested into folders
 		for _, vm := range vmList {
 			_, isInFolder := data.vmToFolderMap[vm]
 			if !isInFolder {
@@ -188,19 +190,27 @@ var treeCmd = &cobra.Command{
 			}
 		}
 
-		for parent, _ := range rootClusterFolders {
-			printTree(&printTreeData{
-				root:           root,
-				childParentMap: childParentMap,
-				vmToFolderMap:  vmToFolderMap,
-				vmNamespaceMap: vmNamespaceMap,
-				vmMap:          vmMap,
-				namespaceMap:   namespaceMap,
-			}, parent, "", "", "")
-			//printNonFolderedNamespaces( )
+		printData := &printTreeData{
+			root:           root,
+			childParentMap: childParentMap,
+			vmToFolderMap:  vmToFolderMap,
+			vmNamespaceMap: vmNamespaceMap,
+			vmMap:          vmMap,
+			namespaceMap:   namespaceMap,
 		}
 
-		// TODO print Namespaces and VMs within namespaces that are not in folders
+		// Print all root folders
+		for parent, _ := range rootClusterFolders {
+			printTree(printData, parent, "", "", "")
+		}
+
+		// Print all namespaces in the cluster that are not nested into folders
+		for ns, _ := range namespaceMap {
+			_, isInFolder := namespaceToFolderMap[ns]
+			if !isInFolder {
+				printTree(printData, "", ns, "", "")
+			}
+		}
 	},
 }
 
