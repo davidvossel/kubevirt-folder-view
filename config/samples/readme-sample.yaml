@@ -1,0 +1,207 @@
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: FolderIndex
+metadata:
+  name: root
+spec:
+  clusterFolderEntries:
+    infra-admins:
+      childFolders:
+        - operations
+    operations:
+      childFolders:
+        - production
+        - staging
+    production:
+      namespaces:
+        - prod-web-apps
+    staging:
+      namespaces:
+        - staging-web-apps
+  namespacedFolderEntries:
+    prod-web-apps/prod-web-app-a:
+      virtualMachines:
+        - web-app-a
+        - web-app-a-db
+    prod-web-apps/prod-web-app-b:
+      virtualMachines:
+        - web-app-b
+        - web-app-b-db
+    staging-web-apps/staging-web-app-a:
+      virtualMachines:
+        - web-app-a
+        - web-app-a-db
+    staging-web-apps/staging-web-app-b:
+      virtualMachines:
+        - web-app-b
+        - web-app-b-db
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod-web-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging-web-apps
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-a
+  namespace: prod-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-a-db
+  namespace: prod-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-b
+  namespace: prod-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-b-db
+  namespace: prod-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-a
+  namespace: staging-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-a-db
+  namespace: staging-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-b
+  namespace: staging-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-app-b-db
+  namespace: staging-web-apps
+spec:
+  runStrategy: Halted
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: containerdisk
+      volumes:
+      - containerDisk:
+          image: kubevirt/cirros-container-disk-demo:devel
+        name: containerdisk
