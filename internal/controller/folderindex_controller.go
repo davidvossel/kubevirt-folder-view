@@ -33,7 +33,7 @@ type FolderIndexReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folderindices,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=*,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folderindices/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folderindices/finalizers,verbs=update
 
