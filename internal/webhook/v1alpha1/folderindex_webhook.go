@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	kubevirtfolderviewkubevirtiov1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
 )
 
 // nolint:unused
@@ -35,7 +35,7 @@ var folderindexlog = logf.Log.WithName("folderindex-resource")
 
 // SetupFolderIndexWebhookWithManager registers the webhook for FolderIndex in the manager.
 func SetupFolderIndexWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&kubevirtfolderviewkubevirtiov1alpha1.FolderIndex{}).
+	return ctrl.NewWebhookManagedBy(mgr).For(&v1alpha1.FolderIndex{}).
 		WithValidator(&FolderIndexCustomValidator{}).
 		Complete()
 }
@@ -58,41 +58,111 @@ type FolderIndexCustomValidator struct {
 
 var _ webhook.CustomValidator = &FolderIndexCustomValidator{}
 
+// TODO Validation rules
+// duplicates
+// 1. a folder cannot be the child of multiple folders
+// 2. a namespace cannot be the child of multiple folders
+// 3. a VM cannot be the child of multiple folders.
+//
+// Loops
+// 1. a child folder cannot also point to a parent in the same chain.
+//   a. Detect this by
+//      * establish all child folders
+//      * establish all root folders
+//      * ensure no duplicates in child folder entries.
+//      * ensure no root folders are also children.
+//
+// ? how to establish root folders
+
+func validateClusterEntries(folderIndex *v1alpha1.FolderIndex) error {
+	visited := map[string]bool{}
+	onPath := map[string]bool{}
+	childParentMap := map[string]string{}
+
+	var dfs func(folder string) error
+
+	dfs = func(folder string) error {
+		if onPath[folder] {
+			return fmt.Errorf("folder loop detected. folder [%s] cannot be both a parent and child within the same filesystem hierarchy", folder)
+		}
+		if visited[folder] {
+			return nil
+		}
+
+		visited[folder] = true
+		onPath[folder] = true
+
+		defer func() { onPath[folder] = false }() // unwind after recursion
+
+		entry, exists := folderIndex.Spec.ClusterFolderEntries[folder]
+		if !exists {
+			return nil
+		}
+
+		for _, child := range entry.ChildFolders {
+			prevParent, exists := childParentMap[child]
+			if exists {
+				return fmt.Errorf("child folder [%s] is the child of both folder [%s] and folder [%s]", child, prevParent, folder)
+			}
+			childParentMap[child] = folder
+
+			if err := dfs(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	for folder := range folderIndex.Spec.ClusterFolderEntries {
+		if !visited[folder] {
+			if err := dfs(folder); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type FolderIndex.
 func (v *FolderIndexCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	folderindex, ok := obj.(*kubevirtfolderviewkubevirtiov1alpha1.FolderIndex)
+	folderIndex, ok := obj.(*v1alpha1.FolderIndex)
 	if !ok {
 		return nil, fmt.Errorf("expected a FolderIndex object but got %T", obj)
 	}
-	folderindexlog.Info("Validation for FolderIndex upon creation", "name", folderindex.GetName())
+	folderindexlog.Info("Validation for FolderIndex upon creation", "name", folderIndex.GetName())
 
-	// TODO(user): fill in your validation logic upon object creation.
+	err := validateClusterEntries(folderIndex)
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type FolderIndex.
 func (v *FolderIndexCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	folderindex, ok := newObj.(*kubevirtfolderviewkubevirtiov1alpha1.FolderIndex)
+	folderIndex, ok := newObj.(*v1alpha1.FolderIndex)
 	if !ok {
 		return nil, fmt.Errorf("expected a FolderIndex object for the newObj but got %T", newObj)
 	}
-	folderindexlog.Info("Validation for FolderIndex upon update", "name", folderindex.GetName())
+	folderindexlog.Info("Validation for FolderIndex upon update", "name", folderIndex.GetName())
 
-	// TODO(user): fill in your validation logic upon object update.
+	err := validateClusterEntries(folderIndex)
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type FolderIndex.
 func (v *FolderIndexCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	folderindex, ok := obj.(*kubevirtfolderviewkubevirtiov1alpha1.FolderIndex)
+	folderIndex, ok := obj.(*v1alpha1.FolderIndex)
 	if !ok {
 		return nil, fmt.Errorf("expected a FolderIndex object but got %T", obj)
 	}
-	folderindexlog.Info("Validation for FolderIndex upon deletion", "name", folderindex.GetName())
-
-	// TODO(user): fill in your validation logic upon object deletion.
+	folderindexlog.Info("Validation for FolderIndex upon deletion", "name", folderIndex.GetName())
 
 	return nil, nil
 }

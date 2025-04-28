@@ -8,7 +8,6 @@ rules:
   - kubevirtfolderview.kubevirt.io.github.com
   resources:
   - '*'
-  - folderindices
   verbs:
   - create
   - delete
