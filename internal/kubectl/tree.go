@@ -200,12 +200,12 @@ var treeCmd = &cobra.Command{
 		}
 
 		// Print all root folders
-		for parent, _ := range rootClusterFolders {
+		for parent := range rootClusterFolders {
 			printTree(printData, parent, "", "", "")
 		}
 
 		// Print all namespaces in the cluster that are not nested into folders
-		for ns, _ := range namespaceMap {
+		for ns := range namespaceMap {
 			_, isInFolder := namespaceToFolderMap[ns]
 			if !isInFolder {
 				printTree(printData, "", ns, "", "")
