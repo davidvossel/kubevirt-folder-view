@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -66,18 +67,75 @@ var _ webhook.CustomValidator = &FolderIndexCustomValidator{}
 //
 // Loops
 // 1. a child folder cannot also point to a parent in the same chain.
-//   a. Detect this by
-//      * establish all child folders
-//      * establish all root folders
-//      * ensure no duplicates in child folder entries.
-//      * ensure no root folders are also children.
 //
-// ? how to establish root folders
+
+func validateNamespacedEntries(folderIndex *v1alpha1.FolderIndex) error {
+	visited := map[string]bool{}
+	onPath := map[string]bool{}
+	vmParentMap := map[string]string{}
+	folderParentMap := map[string]string{}
+
+	var dfs func(folder string) error
+
+	dfs = func(folder string) error {
+		if onPath[folder] {
+			return fmt.Errorf("folder loop detected. folder [%s] cannot be both a parent and child within the same filesystem hierarchy", folder)
+		}
+		if visited[folder] {
+			return nil
+		}
+
+		visited[folder] = true
+		onPath[folder] = true
+
+		defer func() { onPath[folder] = false }() // unwind after recursion
+
+		entry, exists := folderIndex.Spec.NamespacedFolderEntries[folder]
+		if !exists {
+			return nil
+		}
+
+		namespace := strings.Split(folder, "/")[0]
+
+		for _, vm := range entry.VirtualMachines {
+			vmNamespaceName := fmt.Sprintf("%s/%s", namespace, vm)
+			prevParent, exists := vmParentMap[vmNamespaceName]
+			if exists {
+				return fmt.Errorf("vm [%s] in namespace [%s] is the child of both folder [%s] and folder [%s]", vm, namespace, prevParent, folder)
+			}
+			vmParentMap[vmNamespaceName] = folder
+		}
+
+		for _, child := range entry.ChildFolders {
+			prevParent, exists := folderParentMap[child]
+			if exists {
+				return fmt.Errorf("child folder [%s] is the child of both folder [%s] and folder [%s]", child, prevParent, folder)
+			}
+			folderParentMap[child] = folder
+
+			if err := dfs(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	for folder := range folderIndex.Spec.NamespacedFolderEntries {
+		if !visited[folder] {
+			if err := dfs(folder); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
 
 func validateClusterEntries(folderIndex *v1alpha1.FolderIndex) error {
 	visited := map[string]bool{}
 	onPath := map[string]bool{}
-	childParentMap := map[string]string{}
+	namespaceParentMap := map[string]string{}
+	folderParentMap := map[string]string{}
 
 	var dfs func(folder string) error
 
@@ -99,12 +157,20 @@ func validateClusterEntries(folderIndex *v1alpha1.FolderIndex) error {
 			return nil
 		}
 
+		for _, ns := range entry.Namespaces {
+			prevParent, exists := namespaceParentMap[ns]
+			if exists {
+				return fmt.Errorf("namespace [%s] is the child of both folder [%s] and folder [%s]", ns, prevParent, folder)
+			}
+			namespaceParentMap[ns] = folder
+		}
+
 		for _, child := range entry.ChildFolders {
-			prevParent, exists := childParentMap[child]
+			prevParent, exists := folderParentMap[child]
 			if exists {
 				return fmt.Errorf("child folder [%s] is the child of both folder [%s] and folder [%s]", child, prevParent, folder)
 			}
-			childParentMap[child] = folder
+			folderParentMap[child] = folder
 
 			if err := dfs(child); err != nil {
 				return err
@@ -149,6 +215,10 @@ func (v *FolderIndexCustomValidator) ValidateUpdate(ctx context.Context, oldObj,
 	folderindexlog.Info("Validation for FolderIndex upon update", "name", folderIndex.GetName())
 
 	err := validateClusterEntries(folderIndex)
+	if err != nil {
+		return nil, err
+	}
+	err = validateNamespacedEntries(folderIndex)
 	if err != nil {
 		return nil, err
 	}
