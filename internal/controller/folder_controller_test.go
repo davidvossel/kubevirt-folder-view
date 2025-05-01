@@ -36,11 +36,17 @@ var _ = Describe("ClusterFolder Controller", func() {
 
 		ctx := context.Background()
 
+		rootNamespacedName := types.NamespacedName{
+			Name: "root",
+		}
+
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
 		folder := &kubevirtfolderviewkubevirtiov1alpha1.ClusterFolder{}
+
+		root := &kubevirtfolderviewkubevirtiov1alpha1.FolderIndex{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind ClusterFolder")
@@ -55,16 +61,27 @@ var _ = Describe("ClusterFolder Controller", func() {
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
+			err = k8sClient.Get(ctx, rootNamespacedName, root)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &kubevirtfolderviewkubevirtiov1alpha1.FolderIndex{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "root",
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &kubevirtfolderviewkubevirtiov1alpha1.ClusterFolder{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			err := k8sClient.Get(ctx, typeNamespacedName, folder)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = k8sClient.Get(ctx, rootNamespacedName, root)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance ClusterFolder")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, folder)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, root)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")

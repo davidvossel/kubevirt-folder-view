@@ -36,15 +36,20 @@ var _ = Describe("NamespacedFolder Controller", func() {
 
 		ctx := context.Background()
 
+		rootNamespacedName := types.NamespacedName{
+			Name: "root",
+		}
+
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
-		namespacedfolder := &kubevirtfolderviewkubevirtiov1alpha1.NamespacedFolder{}
+		namespacedFolder := &kubevirtfolderviewkubevirtiov1alpha1.NamespacedFolder{}
+		root := &kubevirtfolderviewkubevirtiov1alpha1.FolderIndex{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind NamespacedFolder")
-			err := k8sClient.Get(ctx, typeNamespacedName, namespacedfolder)
+			err := k8sClient.Get(ctx, typeNamespacedName, namespacedFolder)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &kubevirtfolderviewkubevirtiov1alpha1.NamespacedFolder{
 					ObjectMeta: metav1.ObjectMeta{
@@ -55,16 +60,27 @@ var _ = Describe("NamespacedFolder Controller", func() {
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
+
+			err = k8sClient.Get(ctx, rootNamespacedName, root)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &kubevirtfolderviewkubevirtiov1alpha1.FolderIndex{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "root",
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &kubevirtfolderviewkubevirtiov1alpha1.NamespacedFolder{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			err := k8sClient.Get(ctx, typeNamespacedName, namespacedFolder)
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Get(ctx, rootNamespacedName, root)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance NamespacedFolder")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			By("Cleanup the specific resource instance NamespacedFolder and root")
+			Expect(k8sClient.Delete(ctx, namespacedFolder)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, root)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
