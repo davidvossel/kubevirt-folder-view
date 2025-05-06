@@ -220,3 +220,25 @@ spec:
       kind: ClusterRole
       name: edit
 ```
+
+# Future Concepts
+
+## FleetFolder - The Multi-Cluster folder view
+
+The current design concepts only cover a single cluster. These concepts can be
+expanded to multiple clusters by introducing a new folder type for organizing
+clusters. This folder could be called a `FleetFolder`
+
+Similar to how a ClusterFolder allows organizing Namespaces into folders, the
+FleetFolder would allow organizing clusters into folders. The result is a
+`FleetFolder` could be used to assign RBAC permissions across multiple folders.
+
+For a `FleetFolder` to be practical, the system needs an abstraction to
+represent clusters. The Advanced Cluster Manager (ACM) has such an abstraction
+today. It is called a `ManagedCluster`, and this is the abstraction used to
+represent all the "spoke" clusters connected to the ACM Hub.
+
+The `FleetFolder` controller could run on the ACM Hub and allow `ManagedClusters`
+to be organized into `FleetFolders` similar to how Namespaces are organized on
+the spoke into `ClusterFolders`. RBAC assignments to a `FleetFolder` would be
+pushed down into the spoke clusters using the `ClusterPermissions` resource.
