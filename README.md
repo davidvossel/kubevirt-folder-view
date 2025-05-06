@@ -16,6 +16,9 @@ A **ClusterFolder** works at the cluster scope may contain both Namespaces and o
 
 A **NamespacedFolder** works at the namespace scope may contain VirtualMachines and other nested NamespacedFolders within that Namespace. Permissions added to a NamespacedFolder are applied to all the VirtualMachines contained within the NamespacedFolder and its nested child NamespacedFolders.
 
+**NOTE** - One key limitation of the NamespacedFolder is that permissions are only granted to VirtualMachine objects referenced within the folder. These permissions to not extend to other resources associated with the VirtualMachine. For example, a user can be giving `Admin` permissions for a specific VM in a NamespacedFolder, but that does not mean that user has direct access to view or modify a secret attached to the VM. The user would need to be given broader Namespace scoped permissions to access the secret.
+
+
 # Example: Folder Hierarchy in Practice. Modeling Development and Operation Teams
 
 Folders can help organizations map their internal teams structure to their cluster infrastructure.
