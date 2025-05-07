@@ -29,6 +29,7 @@ import (
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/davidvossel/kubevirt-folder-view/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -84,9 +85,20 @@ func generateRoleBindingNameHash(folderUID types.UID, namespace string, subject 
 func (r *ClusterFolderReconciler) reconcileFolderPermissions(ctx context.Context, folder *v1alpha1.ClusterFolder, namespace string) ([]string, error) {
 	appliedRBs := []string{}
 
+	log := logger.FromContext(ctx)
 	ownerRef := getClusterFolderOwnerReference(folder)
 
-	// TODO Verify Namespace exists before adding RoleBindings
+	namespaceObj := &corev1.Namespace{}
+	if err := r.Client.Get(ctx, client.ObjectKey{Name: namespace}, namespaceObj); err != nil {
+		if apierrors.IsNotFound(err) {
+			// ignore reconciling role bindings for namespaces that have either
+			// been deleted, or have not been created yet
+			log.Info(fmt.Sprintf("Ignoring non-existent namespace [%s]", namespace))
+			return appliedRBs, nil
+		}
+		return appliedRBs, err
+	}
+
 	for _, fp := range folder.Spec.FolderPermissions {
 		for _, rr := range fp.RoleRefs {
 			name, err := generateRoleBindingNameHash(folder.UID, namespace, fp.Subject, rr)
