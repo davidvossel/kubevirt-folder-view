@@ -63,7 +63,6 @@ func (r *NamespacedFolderReconciler) getAllVMs(root *v1alpha1.FolderIndex, folde
 
 	entry, exists := root.Spec.NamespacedFolderEntries[folderName]
 	// Folder does not exist
-	// TODO garbage collect non existent folders
 	if !exists {
 		return vms, nil
 	}

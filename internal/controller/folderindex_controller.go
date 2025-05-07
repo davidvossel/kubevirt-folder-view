@@ -37,19 +37,14 @@ type FolderIndexReconciler struct {
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folderindices/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=kubevirtfolderview.kubevirt.io.github.com,resources=folderindices/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the FolderIndex object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *FolderIndexReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// TODO - The index reconciler should do the following
+	// 1. Verify consistency of the root index (same as validating webhook)
+	// 2. report status if consistency errors occur
+	// 3. set hash of spec that was last validated, this lets the other controllers only reconcile a root
+	// index that has been validated (avoiding loops and consistency errors)
 
 	return ctrl.Result{}, nil
 }
