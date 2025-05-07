@@ -46,6 +46,122 @@ kind: Namespace
 metadata:
   name: staging-web-apps
 ---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: ClusterFolder
+metadata:
+  name: infra-admins
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: infra-admins
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: admin
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: ClusterFolder
+metadata:
+  name: operations
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: operations
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: ClusterFolder
+metadata:
+  name: staging
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: staging
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: ClusterFolder
+metadata:
+  name: production
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: production
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: NamespacedFolder
+metadata:
+  name: prod-web-app-a
+  namespace: prod-web-apps
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: web-app-a-owners
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: NamespacedFolder
+metadata:
+  name: prod-web-app-b
+  namespace: prod-web-apps
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: web-app-b-owners
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: NamespacedFolder
+metadata:
+  name: staging-web-app-a
+  namespace: staging-web-apps
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: web-app-a-owners
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
+apiVersion: kubevirtfolderview.kubevirt.io.github.com/v1alpha1
+kind: NamespacedFolder
+metadata:
+  name: staging-web-app-b
+  namespace: staging-web-apps
+spec:
+  folderPermissions:
+  - subject:
+      kind: ServiceAccount
+      name: web-app-b-owners
+    roleRefs:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: edit
+---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
